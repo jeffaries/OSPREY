@@ -108,7 +108,7 @@ typedef struct {
 
 
 template <class Transport>
-struct bus {
+struct Bus {
   boolean   active;
   Transport transport;
   uint8_t   device_id;
