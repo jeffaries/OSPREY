@@ -107,7 +107,7 @@ typedef struct {
 } router;
 
 
-template <class Transport>
+template <class Transport> // Bus<PJON> bus;
 struct Bus {
   boolean   active;
   Transport transport;
