@@ -51,28 +51,6 @@ advised of the possibility of such damage. */
   #endif
 #endif
 
-#ifndef PJON_h
-  #define PJON_h
-  typedef struct {
-    boolean  active;
-    PJON     connector;          // TODO - network transport
-    uint8_t  device_id;
-    uint8_t  network_id[4];
-    router   routers[MAX_ROUTERS];
-  } bus;
-#endif
-
-#ifndef PJON_ASK_h
-  #define PJON_ASK_h
-  typedef struct {
-    boolean  active;
-    PJON_ASK connector;          // TODO - network transport
-    uint8_t  device_id;
-    uint8_t  network_id[4];
-    router   routers[MAX_ROUTERS];
-  } bus;
-#endif
-
 // General constants
 
 #define MAX_BUSES           10
@@ -127,6 +105,16 @@ typedef struct {
   uint8_t device_id;
   uint8_t network_ids[MAX_KNOWN_NETWORKS][4]; 
 } router;
+
+
+template <class Transport>
+struct bus {
+  boolean   active;
+  Transport transport;
+  uint8_t   device_id;
+  uint8_t   network_id[4];
+  router    routers[MAX_ROUTERS];
+};
 
 
 typedef struct {
