@@ -41,6 +41,8 @@ theory of liability, whether in contract, strict liability, or tort (including
 negligence or otherwise) arising in any way out of the use of this software, even if
 advised of the possibility of such damage. */
 
+#include "Transport.h"
+
 #ifndef OSPREY_h
   #define OSPREY_h
   #if defined(ARDUINO) && (ARDUINO >= 100)
@@ -64,75 +66,69 @@ advised of the possibility of such damage. */
 
 #define INFO 100
 #define PING 101
+#define REQUEST 102
+#define ASSERT  103
 
-#define DESTINATION_BUS_UNREACHABLE     102
-#define SOURCE_BUS_UNREACHABLE          103
+#define DESTINATION_BUS_UNREACHABLE     104
+#define SOURCE_BUS_UNREACHABLE          105
 
-#define DESTINATION_DEVICE_UNREACHABLE  104
-#define SOURCE_DEVICE_UNREACHABLE       105
+#define DESTINATION_DEVICE_UNREACHABLE  106
+#define SOURCE_DEVICE_UNREACHABLE       107
 
-#define TIMEOUT                         106
-#define JUMP_LIMIT                      107
+#define TIMEOUT                         108
+#define JUMP_LIMIT                      109
 
-#define PROHIBITED                      108
+#define PROHIBITED                      110
 
 // Package states
 
-#define TO_BE_DISPATCHED  109
-#define DISPATCHED        110
-#define DELIVERED         111
+#define TO_BE_DISPATCHED  111
+#define DISPATCHED        112
+#define DELIVERED         113
 
 
 typedef struct {
   boolean    active;
-  boolean    router;
-  Transport  transport;
   uint8_t    device_id;
   uint8_t    network_id[4];
+  boolean    router;
   router     routers[MAX_ROUTERS];
+  Transport  transport;
 } bus;
 
 
 typedef struct {
   boolean  active;
-  uint8_t  network_id[4];
   uint8_t  device_id;
+  uint8_t  network_id[4];
   uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
 } router;
 
-
+// Basic package strcture
 typedef struct {
   uint8_t           attempts;
   char              *content;
-  uint8_t           device_id;
   unsigned uint8_t  id;
   uint8_t           length;
-  uint8_t           network_id[4];
-  uint8_t           package_id;
+  uint8_t           jumps;
   unsigned long     registration;
+  uint8_t           recipient_device_id;
+  uint8_t           recipient_network_id[4];
   uint8_t           sender_device_id;
   uint8_t           sender_network_id[4];
-  uint8_t           jumps;
   uint8_t           state;
   unsigned long     timing;
-} package;
+} Package;
 
+// Ping package structure
+typedef struct: Package {
+  uint8_t jumps[MAX_JUMPS][5];
+} Ping;
 
-typedef struct {
-  unsigned long  send_time;
-  unsigned long  receive_time;
-  unsigned long  fly_time;
-  uint8_t        jumps[MAX_JUMPS][5];
-} ping_package;
-
-
-typedef struct {
-  uint8_t  sender_id;
-  uint8_t  network_id[4];
-  uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
-} info_package;
-
-
+// Info package structure
+typedef struct: Package {
+  uint8_t network_ids[MAX_KNOWN_NETWORKS][4];
+} Info;
 
 class OSPREY {
   public:
@@ -140,12 +136,12 @@ class OSPREY {
     
     void add_bus(Transport t, uint8_t device_id, uint8_t network_id[4], boolean router);
     void update();
-    int  send_packet(bus b, package p, uint8_t device_id);
+    int  send_packet(bus b, Package p, uint8_t device_id);
   
   private:
     // TODO - Switch to linked lists
     bus      _buses[MAX_BUSES];
-    package  _packages[MAX_PACKAGES];
+    Package  _packages[MAX_PACKAGES];
     router   _routers[MAX_ROUTERS];
     uint8_t  _package_id_source;
 };
