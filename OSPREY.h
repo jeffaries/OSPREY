@@ -71,16 +71,34 @@ advised of the possibility of such damage. */
 #define DESTINATION_DEVICE_UNREACHABLE  104
 #define SOURCE_DEVICE_UNREACHABLE       105
 
-#define PACKAGE_TIMEOUT                 106
-#define JUMP_LIMIT_REACHED              107
+#define TIMEOUT                         106
+#define JUMP_LIMIT                      107
 
 #define PROHIBITED                      108
 
 // Package states
 
-#define TO_BE_DISPATCHED  110
-#define DISPATCHED        111
-#define DELIVERED         112
+#define TO_BE_DISPATCHED  109
+#define DISPATCHED        110
+#define DELIVERED         111
+
+
+typedef struct {
+  boolean    active;
+  boolean    router;
+  Transport  transport;
+  uint8_t    device_id;
+  uint8_t    network_id[4];
+  router     routers[MAX_ROUTERS];
+} bus;
+
+
+typedef struct {
+  boolean  active;
+  uint8_t  network_id[4];
+  uint8_t  device_id;
+  uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
+} router;
 
 
 typedef struct {
@@ -101,39 +119,33 @@ typedef struct {
 
 
 typedef struct {
-  boolean  active;
-  uint8_t  device_id;
-  uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
-} router;
-
-
-typedef struct {
-  boolean    active;
-  Transport  transport;
-  uint8_t    device_id;
-  uint8_t    network_id[4];
-  router     routers[MAX_ROUTERS];
-} bus;
-
-
-typedef struct {
   unsigned long  send_time;
   unsigned long  receive_time;
   unsigned long  fly_time;
   uint8_t        jumps[MAX_JUMPS][5];
-} ping_response;
+} ping_package;
+
+
+typedef struct {
+  uint8_t  sender_id;
+  uint8_t  network_id[4];
+  uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
+} info_package;
+
 
 
 class OSPREY {
   public:
     OSPREY();
-    void add_bus(bus b);
+    
+    void add_bus(Transport t, uint8_t device_id, uint8_t network_id[4], boolean router);
     void update();
-    int send_packet(bus b, package p, uint8_t device_id);
+    int  send_packet(bus b, package p, uint8_t device_id);
+  
   private:
     // TODO - Switch to linked lists
-    bus _buses[MAX_BUSES];
-    package _packages[MAX_PACKAGES];
-    router _routers[MAX_ROUTERS];
-    uint8_t _package_id_source;
+    bus      _buses[MAX_BUSES];
+    package  _packages[MAX_PACKAGES];
+    router   _routers[MAX_ROUTERS];
+    uint8_t  _package_id_source;
 };

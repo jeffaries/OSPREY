@@ -2,7 +2,7 @@
 /*
 
   General transport Interface
-  This is the basic idea of a Transport Class.
+  This is the basic Transport Class.
   PJON and PJON_ASK are two examples of an OSPREY transport.
   If you want to write you own physical layer Transport library and support
   OSPREY, see the PJON Standard definition: https://github.com/gioblu/PJON/wiki
