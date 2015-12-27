@@ -78,7 +78,7 @@ void OSPREY::add_bus(Transport t, uint8_t device_id, uint8_t network_id[4], bool
 };
 
 
-char * OSPREY::build_content(package p) {
+char * OSPREY::build_content(Package p) {
   char *memory = (char *) malloc(p.length] + 7);
 
   // TODO - Add memory fail
@@ -107,8 +107,8 @@ char * OSPREY::build_content(package p) {
 };
 
 
-package OSPREY::build_package(uint8_t *content) {
-  package p;
+Package OSPREY::build_package(uint8_t *content) {
+  Package p;
 
   for(uint8_t i = 0; i < 4; i++)
     p.network_id[i] = content[i];
@@ -129,12 +129,17 @@ package OSPREY::build_package(uint8_t *content) {
 };
 
 
-ping_response OSPREY::ping(uint8_t network_id[4], uint8_t device_id) {
+Ping OSPREY::ping(uint8_t network_id[4], uint8_t device_id) {
 
 };
 
 
-void OSPREY::receive(bus b) {
+Info OSPREY::info(Bus b) {
+
+};
+
+
+void OSPREY::receive(Bus b) {
   b.transport.receive();
 };
 
@@ -154,7 +159,7 @@ void free_package(uint8_t id) {
 };
 
 
-void OSPREY::send(package p) {
+void OSPREY::send(Package p) {
  
   // 1 First network id lookup with direct bus connections
   for(uint8_t b = 0; b < MAX_BUSES; b++) 
@@ -186,7 +191,7 @@ void OSPREY::send(package p) {
 };
 
 
-void OSPREY::send_packet(bus b, package p, uint8_t device_id = 0) {           
+void OSPREY::send_packet(Bus b, Package p, uint8_t device_id = 0) {           
   // Send OSPREY Package as PJON packet in the connected PJON bus 
   int packet = b.connector.send(
     (device_id) ? device_id : p.device_id, 

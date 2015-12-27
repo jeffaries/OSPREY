@@ -12,16 +12,15 @@
 
 class Transport {
   public:
-    Transport(int input_pin);
-    Transport(int input_pin, uint8_t id);
+    virtual ~Transport(int input_pin);
+    virtual ~Transport(int input_pin, uint8_t id);
 
-    int receive(unsigned long duration);
-    int send(uint8_t id, char *packet, uint8_t length, unsigned long timing = 0);
+    virtual int receive(unsigned long duration);
+    virtual int send(uint8_t id, char *packet, uint8_t length, unsigned long timing = 0);
 
-    void set_id(uint8_t id);
-    void set_error(error e);
-    void set_receiver(receiver r);
+    virtual void set_id(uint8_t id);
+    virtual void set_error(error e);
+    virtual void set_receiver(receiver r);
 
-    void update();
-  protected:
+    virtual void update();
 };

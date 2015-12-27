@@ -41,7 +41,7 @@ theory of liability, whether in contract, strict liability, or tort (including
 negligence or otherwise) arising in any way out of the use of this software, even if
 advised of the possibility of such damage. */
 
-#include "Transport.h"
+#include "includes/Transport.h"
 
 #ifndef OSPREY_h
   #define OSPREY_h
@@ -86,23 +86,21 @@ advised of the possibility of such damage. */
 #define DISPATCHED        112
 #define DELIVERED         113
 
-
 typedef struct {
   boolean    active;
   uint8_t    device_id;
   uint8_t    network_id[4];
   boolean    router;
-  router     routers[MAX_ROUTERS];
+  Router     routers[MAX_ROUTERS];
   Transport  transport;
-} bus;
-
+} Bus;
 
 typedef struct {
   boolean  active;
   uint8_t  device_id;
   uint8_t  network_id[4];
   uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
-} router;
+} Router;
 
 // Basic package strcture
 typedef struct {
@@ -136,12 +134,12 @@ class OSPREY {
     
     void add_bus(Transport t, uint8_t device_id, uint8_t network_id[4], boolean router);
     void update();
-    int  send_packet(bus b, Package p, uint8_t device_id);
+    int  send_packet(Bus b, Package p, uint8_t device_id);
   
   private:
     // TODO - Switch to linked lists
-    bus      _buses[MAX_BUSES];
+    Bus      _buses[MAX_BUSES];
     Package  _packages[MAX_PACKAGES];
-    router   _routers[MAX_ROUTERS];
+    Router   _routers[MAX_ROUTERS];
     uint8_t  _package_id_source;
 };
