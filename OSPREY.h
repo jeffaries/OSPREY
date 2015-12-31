@@ -88,19 +88,19 @@ advised of the possibility of such damage. */
 
 typedef struct {
   boolean    active;
-  uint8_t    device_id;
-  uint8_t    network_id[4];
-  boolean    router;
-  Router     routers[MAX_ROUTERS];
+  Device     device;
+  Device     known_routers[MAX_ROUTERS];
+  Device     known_devices[MAX_DEVICES];
   Transport  transport;
 } Bus;
 
 typedef struct {
   boolean  active;
-  uint8_t  device_id;
+  boolean  router;
+  uint8_t  id;
   uint8_t  network_id[4];
-  uint8_t  network_ids[MAX_KNOWN_NETWORKS][4];
-} Router;
+  uint8_t  known_network_ids[MAX_KNOWN_NETWORKS][4];
+} Device;
 
 // Basic package strcture
 typedef struct {
@@ -131,15 +131,14 @@ typedef struct: Package {
 class OSPREY {
   public:
     OSPREY();
-    
+
     void add_bus(Transport t, uint8_t device_id, uint8_t network_id[4], boolean router);
     void update();
     int  send_packet(Bus b, Package p, uint8_t device_id);
-  
+
   private:
-    // TODO - Switch to linked lists
+    // TODO - Consider switch to linked lists
     Bus      _buses[MAX_BUSES];
     Package  _packages[MAX_PACKAGES];
-    Router   _routers[MAX_ROUTERS];
     uint8_t  _package_id_source;
 };
