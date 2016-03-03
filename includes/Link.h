@@ -2,7 +2,7 @@
 /*
 
   General transport Interface
-  This is the basic Transport Class.
+  This is the basic Link Class.
   PJON and PJON_ASK are two examples of an OSPREY transport.
   If you want to write you own physical layer Transport library and support
   OSPREY, see the PJON Standard definition: https://github.com/gioblu/PJON/wiki
@@ -10,10 +10,12 @@
 
  */
 
-class Transport {
+typedef void (* receiver)(uint8_t length, uint8_t *payload);
+typedef void (* error)(uint8_t code, uint8_t data);
+
+class Link {
   public:
-    virtual ~Transport(int input_pin);
-    virtual ~Transport(int input_pin, uint8_t id);
+    //virtual ~Link();
 
     virtual int receive(unsigned long duration);
     virtual int send(uint8_t id, char *packet, uint8_t length, unsigned long timing = 0);
