@@ -101,54 +101,7 @@ void OSPREY::add_bus(Link l, uint8_t bus_id[4], boolean router) {
   |  Device 1 in bus 0.0.0.2 is sending a REQUEST (value 102)                       |
   |  to device 1 in bus 0.0.0.1 the first package since started                     |
   |  (package id 1) containing the content "@" or decimal 64                        |
-  |_________________________________________________________________________________|*/
-
-
-/*char * OSPREY::build_content(Package p, uint8_t id) {
-
-  for(uint8_t i = 0; i < 4; i++)
-    memory[i] = p.receiver_bus_id[i];
-  memory[4] = p.receiver_device_id;
-
-  for(uint8_t i = 0; i < 4; i++)
-    memory[i + 5] = p.sender_bus_id[i];
-  memory[9] = p.sender_device_id;
-
-  if(id == PRE_EXISTENT)
-    memory[10] = generate_package_id();
-  else
-    memory[10] = id;
-
-  memory[11] = p.hops++;
-
-  for(uint8_t c = 0; c < p.length; c++)
-    memory[c + 12] = p.content;
-
-  return memory;
-};
-
-
-Package OSPREY::create_package(uint8_t *content) {
-  Package p;
-
-  for(uint8_t i = 0; i < 4; i++)
-    p.receiver_network_id[i] = content[i];
-
-  p.receiver_device_id = content[4];
-
-  for(uint8_t i = 0; i < 4; i++)
-    p.sender_network_id[i] = content[i + 5];
-
-  p.sender_device_id = content[9];
-
-  p.id = content[10];
-  p.hops = content[11]++; // TODO - Maybe ++content necessary
-
-  for(uint8_t c = 0; c < p.length; c++)
-    p.content[i] = content[c + 12];
-
-  return p;
-};*/
+  |_________________________________________________________________________________| */
 
 
 Ping OSPREY::ping(uint8_t bus_id[4], uint8_t device_id) {
