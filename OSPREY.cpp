@@ -45,12 +45,11 @@ advised of the possibility of such damage. */
 
 OSPREY::OSPREY() {
   for(int p = 0; p < MAX_PACKAGES; p++)
-    _packages[i].active = false;
+    packages[i].active = false;
 
   for(int b = 0; b < MAX_BUSES; b++) {
-    _buses[b].device.active = false;
-    for(int r = 0; r < MAX_DEVICES; r++) {
-      _buses[b].known_devices[r].active = false;
+    for(int r = 0; r < MAX_KNOW_DEVICES; r++) {
+      buses[b].known_devices[r].active = false;
     }
   }
 
@@ -59,17 +58,29 @@ OSPREY::OSPREY() {
 };
 
 
-void OSPREY::add_bus(Link l, uint8_t bus_id[4], boolean router) {
+uint8_t OSPREY::add_bus(Link l, uint8_t bus_id[BUS_ID_LENGTH], boolean router) {
   for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(!_buses[b].active) {
-      _buses[b].link = l;
-      _buses[b].device.id = l.get_id();
+    if(!buses[b].active) {
+      buses[b].active = true;
+      buses[b].link = l;
+      buses[b].device.id = l.device_id();
+      // TODO - Manage auto-addressing strategy
 
-      for(uint8_t n = 0; n < 4; n++)
-        _buses[b].id[n] = bus_id[n];
+      for(uint8_t n = 0; n < BUS_ID_LENGTH; n++)
+        buses[b].id[n] = bus_id[n];
 
-      _buses[b].device.router = router;
+      buses[b].device.router = router;
     }
+};
+
+
+uint8_t OSPREY::add_package(Package package) {
+  for(uint8_t p = 0; p < MAX_PACKAGES; p++)
+    if(!packages[p].active) {
+      packages[p] = package;
+      return TO_BE_DISPATCHED;
+    }
+    return PACKAGE_BUFFER_FULL;
 };
 
 
@@ -98,209 +109,113 @@ void OSPREY::add_bus(Link l, uint8_t bus_id[4], boolean router) {
   |  Device 1 in bus 0.0.0.2 is sending a REQUEST (value 102)                       |
   |  to device 1 in bus 0.0.0.1 the first package since started                     |
   |  (package id 1) containing the content "@" or decimal 64                        |
-  |_________________________________________________________________________________|*/
+  |_________________________________________________________________________________| */
 
 
-/*char * OSPREY::build_content(Package p, uint8_t id) {
+uint8_t OSPREY::send(Package p) {
 
-  for(uint8_t i = 0; i < 4; i++)
-    memory[i] = p.receiver_bus_id[i];
-  memory[4] = p.receiver_device_id;
-
-  for(uint8_t i = 0; i < 4; i++)
-    memory[i + 5] = p.sender_bus_id[i];
-  memory[9] = p.sender_device_id;
-
-  if(id == PRE_EXISTENT)
-    memory[10] = generate_package_id();
-  else
-    memory[10] = id;
-
-  memory[11] = p.hops++;
-
-  for(uint8_t c = 0; c < p.length; c++)
-    memory[c + 12] = p.content;
-
-  return memory;
-};
-
-
-Package OSPREY::create_package(uint8_t *content) {
-  Package p;
-
-  for(uint8_t i = 0; i < 4; i++)
-    p.receiver_network_id[i] = content[i];
-
-  p.receiver_device_id = content[4];
-
-  for(uint8_t i = 0; i < 4; i++)
-    p.sender_network_id[i] = content[i + 5];
-
-  p.sender_device_id = content[9];
-
-  p.id = content[10];
-  p.hops = content[11]++; // TODO - Maybe ++content necessary
-
-  for(uint8_t c = 0; c < p.length; c++)
-    p.content[i] = content[c + 12];
-
-  return p;
-};*/
-
-
-Ping OSPREY::ping(uint8_t bus_id[4], uint8_t device_id) {
-
-};
-
-
-Info OSPREY::info(Bus b) {
-
-};
-
-
-void OSPREY::receive(unsigned long duration) {
-  duration = duration / _active_buses;
-  for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(buses[b].active)
-      buses[b].link.receive(duration);
-};
-
-
-void OSPREY::receive(uint8_t bus_index, unsigned long duration) {
-  buses[bus_index].link.receive(duration);
-};
-
-
-void OSPREY::received(uint8_t length, uint8_t *payload) {
-  // Check if package's recipient is this device on one of its buses
-  for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(_buses[b].active)
-      if(bus_id_equality([payload[0], payload[1], payload[2], payload[3]], _buses[b].id)) {
-        if(payload[4] == _buses[b].device.id)
-          this->_receiver(length - 14, payload[13]);
-        // TODO - Route packages directed to known buses or devices
-        // Manage somehow :)
-      }
-};
-
-
-void OSPREY::assert(uint8_t bus_id[4], uint8_t device_id) {
-
-}
-
-
-void OSPREY::request(uint8_t bus_id[4], uint8_t device_id) {
-
-}
-
-
-void OSPREY::send(uint8_t bus_id[4], uint8_t device_id, uint8_t id = 0, uint8_t hops = 0) {
-  // TODO - Check all offsets
-  for(int p = 0; p < MAX_PACKAGES; p++)
-    if(!_packages[p].active) {
-      for(uint8_t i = 0; i < 4; i++)
-        _packages[p].receiver_network_id[i] = bus_id[i];
-      _packages[p].receiver_device_id = device_id[4];
-
-      for(uint8_t i = 0; i < 4; i++)
-        _packages[p].sender_network_id[i] = ?;
-      _packages[p].sender_device_id = ?;
-      // TODO - Which device id and network I shoudl choose in buses?
-
-      _packages[p].id = id;
-      _packages[p].hops = hops++;
-      // TODO - Maybe ++hops necessary
-
-      for(uint8_t c = 0; c < p.length; c++)
-        p.content[c] = content[c + 12];
-
-      _packages[p].state = TO_BE_DISPATCHED;
-      return TO_BE_DISPATCHED;
-    }
-
-  return PACKAGE_BUFFER_FULL;
-};
-
-
-void OSPREY::send_package(Package p) {
   // 1 First network id lookup with direct bus connections
   for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(_buses[b].active)
-      if(bus_id_equality(_buses[b].id, p.receiver_bus_id)) {
+    if(buses[b].active)
+      if(bus_id_equality(buses[b].id, p.content[0])) {
         // First level connection detected
         // Send OSPREY Package as PJON packet to the directly connected PJON bus
-        p.packet_id = send_packet(_buses[b], p);
-        return TO_BE_DISPATCHED;
+        p.packet_id = buses[b].link.send(p.content[BUS_ID_LENGTH], p.content, p.length);
+        p.state = TO_BE_DISPATCHED;
+        return this->add_package(p);
       }
 
   // 2 Network id lookup in every router's connected bus list
   for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(_buses[b].active)
-      for(uint8_t d = 0; d < MAX_DEVICES; d++)
-        if(_buses[b].known_devices[d].active)
+    if(buses[b].active)
+      for(uint8_t d = 0; d < MAX_KNOW_DEVICES; d++)
+        if(buses[b].known_devices[d].active && buses[b].known_devices[d].router)
           for(uint8_t k = 0; k < MAX_KNOWN_BUSES; k++)
-            if(bus_id_equality(_buses[b].known_devices[d].known_bus_ids[k], p.receiver_bus_id)) {
+            if(bus_id_equality(buses[b].known_devices[d].known_bus_ids[k], p.content[0])) {
               // Second level connection detected
               // Send OSPREY Package as PJON packet to the router connected to the target PJON bus
-              p.packet_id = send_packet(_buses[b], p, _buses[b].known_devices[d].id);
-              return TO_BE_DISPATCHED;
+              p.packet_id = buses[b].link.send(buses[b].known_devices[d].id, content, length);
+              p.state = TO_BE_DISPATCHED;
+              return this->add_package(p);
             }
 
   // 3 Network id lookup in all uknown networks
   for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(_buses[b].active)
-      for(uint8_t d = 0; d < MAX_DEVICES; d++)
-        if(_buses[b].known_devices[d].active && _buses[b].known_devices[d].router) {
-          p.packet_id = send_packet(_buses[b], p, _buses[b].known_devices[r].id);
+    if(buses[b].active)
+      for(uint8_t d = 0; d < MAX_KNOW_DEVICES; d++)
+        if(buses[b].known_devices[d].active && buses[b].known_devices[d].router) {
           // TODO - Manage somehow :)
-          return TO_BE_DISPATCHED;
+          p.packet_id = buses[b].link.send(buses[b].known_devices[d].id, content, length);
+          p.state = TO_BE_DISPATCHED;
+          return this->add_package(p);
         }
 
   return DESTINATION_BUS_UNREACHABLE;
 };
 
 
-int OSPREY::send_packet(uint8_t bus_id, Package p, uint8_t device_id = INHERIT) {
-  // Send OSPREY Package as PJON packet in the connected PJON bus
-  return buses[bus_id].link.send(
-    (device_id == INHERIT) ? p.receiver_device_id : device_id,
-    build_content(p),
-    p.length
-  );
+void OSPREY::update() {
+  for(uint8_t b = 0; b < MAX_BUSES; b++)
+    if(buses[b].active)
+      buses[b].link.update();
 };
 
 
-void OSPREY::update() {
-  for(uint8_t p = 0; p < MAX_PACKAGES; p++) {
-    if(_packages[p].state == TO_BE_DISPATCHED) {
-      send(_packages[p]);
-    }
+void OSPREY::receive(uin32_t duration) {
+  uint8_t  buses = this->count_active_buses();
+  uint32_t time_per_bus = duration / buses;
+
+  for(uint8_t b = 0; b < MAX_BUSES; b++) {
+    uint32_t time = micros();
+    if(buses[b].active)
+      while((uint32_t)(time + time_per_bus) >= micros())
+        buses[b].link.receive();
   }
 };
 
 
-void free_package(uint8_t id) {
-  for(uint8_t i = 0; i < MAX_PACKAGE_LENGTH; i++)
-    packages[id].content[i] = NULL;
+void OSPREY::received(uint8_t length, uint8_t *payload) {
+  // Check if package's recipient is this device on one of its buses
+  for(uint8_t b = 0; b < MAX_BUSES; b++)
+    if(buses[b].active)
+      if(bus_id_equality([payload, buses[b].id)) {
+        if(payload[BUS_ID_LENGTH] == buses[b].device.id)
+          this->_receiver(length - 14, payload[13]);
+          // TODO - send acknowledgement back
+        if(buses[b].device.router)
+          for(uint8_t k = 0; k < MAX_KNOW_DEVICES; k++)
+            if(buses[b].known_devices[k].id ==  payload[BUS_ID_LENGTH])
+              // TODO - Send package through link
+      }
+};
 
+
+uint8_t OSPREY::count_active_buses() {
+  uint8_t buses;
+  for(uint8_t b = 0; b < MAX_BUSES; b++)
+    if(buses[b].active)
+      buses++;
+  return buses;
+}
+
+
+void free_package(uint8_t id) {
   packages[id].attemps = 0;
   packages[id].hops = 0;
-  packages[id].state = FREE;
+  packages[id].state = NULL;
+  packages[id].tx_id = 0;
 };
 
 
 uint8_t OSPREY::generate_package_id(uint8_t bus_id) {
   if (_package_id_source + 1 > _package_id_source)
     return _package_id_source++;
-  else {
-    _package_id_source = 0;
-    return _package_id_source;
-  }
+  return 0;
 };
 
 
-boolean OSPREY::bus_id_equality(uint8_t id_one[4], uint8_t id_two[4]) {
-  for(uint8_t i = 0; i < 4; i++)
+boolean OSPREY::bus_id_equality(uint8_t *id_one, uint8_t *id_two) {
+  for(uint8_t i = 0; i < BUS_ID_LENGTH; i++)
     if(id_one[i] != id_two[i])
       return false;
   return true;

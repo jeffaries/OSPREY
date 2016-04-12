@@ -50,33 +50,34 @@ advised of the possibility of such damage. */
 
 // General constants
 
+#define BUS_ID_LENGTH        4
+/* Use 4 bytes to comply to the OSPREY network Standard and be able to connect
+   your network to other people ones. */
+
 #define MAX_BUSES           10
 #define MAX_HOPS            10
 #define MAX_KNOWN_BUSES     10
+#define MAX_KNOWN_DEVICES   10
 #define MAX_PACKAGE_LENGTH  50
-#define MAX_PACKAGES        10
+
 #define MAX_ROUTERS         10
-#define MAX_DEVICES         10
 #define ROUTER_INFO_TIME    15000000 // 15 seconds
 
 // Protocol symbols
-
-#define INFO     100
-#define PING     101
-#define REQUEST  102
-#define ASSERT   103
-#define INTERNET_REQUEST 104
-#define INTERNET_ASSERT  105
+#define ASSERT            100
+#define INFO              101
+#define INTERNET_ASSERT   102
+#define INTERNET_REQUEST  103
+#define PING              104
+#define REQUEST           105
 
 // Package states
-
 #define FREE              110
 #define TO_BE_DISPATCHED  111
 #define DISPATCHED        112
 #define DELIVERED         113
 
 // Errors
-
 #define DESTINATION_BUS_UNREACHABLE     115
 #define SOURCE_BUS_UNREACHABLE          116
 #define DESTINATION_DEVICE_UNREACHABLE  117
@@ -88,11 +89,11 @@ advised of the possibility of such damage. */
 
 // Basic Bus structure
 typedef struct {
-  boolean  active;                     // Bus activity state boolean
-  uint8_t  id[4];                      // 4 byte bus id
-  Device   device;                     // Router device object
-  Device   known_devices[MAX_DEVICES]; // Known devices in this bus
-  Link     link;                       // Link (PJON or PJON_ASK instance)
+  boolean  active;                          // Bus activity state boolean
+  uint8_t  id[BUS_ID_LENGTH];               // n byte bus id
+  Device   device;                          // Device object
+  Device   known_devices[MAX_KNOW_DEVICES]; // Known devices in this bus
+  Link     link;                            // Link (PJON or PJON_ASK instance)
 } Bus;
 
 // Basic Device structure
@@ -100,55 +101,50 @@ typedef struct {
   boolean  active; // Device activity state boolean
   boolean  router; // Router functionality state boolean
   uint8_t  id;     // Device id on its PJON bus
-  uint8_t  known_bus_ids[MAX_KNOWN_BUSES][4]; // Known bus_ids
+  uint8_t  known_bus_ids[MAX_KNOWN_BUSES][BUS_ID_LENGTH]; // Known bus_ids
 } Device;
 
 // Basic package structure
-typedef struct {
+typedef struct Package {
   uint8_t           attempts;
-  char              content[MAX_PACKAGE_LENGTH];
-  unsigned uint8_t  id;
+  uint8_t           *content;
   uint8_t           length;
-  uint8_t           hops;
-  uint8_t           packet_id;
   unsigned long     registration;
-  uint8_t           receiver_device_id;
-  uint8_t           receiver_bus_id[4];
-  uint8_t           sender_device_id;
-  uint8_t           sender_bus_id[4];
   uint8_t           state;
   unsigned long     timing;
 } Package;
 
 // Ping package structure
 typedef struct: Package {
-  uint8_t hops[MAX_HOPS][5];
+  uint8_t hops[MAX_HOPS][BUS_ID_LENGTH + 1];
 } Ping;
 
 // Info package structure
 typedef struct: Package {
-  uint8_t known_bus_ids[MAX_KNOWN_BUSES][4];
+  uint8_t known_bus_ids[MAX_KNOWN_BUSES][BUS_ID_LENGTH];
 } Info;
 
 class OSPREY {
   public:
     OSPREY();
+    uint8_t add_bus(Link l, uint8_t bus_id[BUS_ID_LENGTH], boolean router);
+    uint8_t add_package(Package p);
 
-    void add_bus(Link l, uint8_t bus_id[4], boolean router);
-    void update();
+    boolean bus_id_equality(uint8_t *id_one, uint8_t *id_two);
+
+    void free_package(uint8_t id);
+
+    uint16_t generate_package_id();
 
     void receive(unsigned long duration);
-    void receive(uint8_t bus_index, unsigned long duration);
+    void received(uint8_t length, uint8_t *payload);
 
-    void send_package(Package p);
-    int  send_packet(uint8_t bus_index, Package p, uint8_t device_id);
-
-    char    *build_content(Package p,  uint8_t id = PRE_EXISTENT);
-    Package  build_package(uint8_t *c, uint8_t id = PRE_EXISTENT);
+    uint8_t send(Package p);
+    void update();
 
     Package  packages[MAX_PACKAGES];
     Bus      buses[MAX_BUSES];
   private:
     uint8_t  _package_id_source;
-    uint8_t  _known_bus_ids[MAX_KNOWN_BUSES][4];
+    uint8_t  _known_bus_ids[MAX_KNOWN_BUSES][BUS_ID_LENGTH];
 };

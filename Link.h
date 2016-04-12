@@ -17,12 +17,17 @@ class Link {
   public:
     //virtual ~Link();
 
+    virtual int receive();
     virtual int receive(unsigned long duration);
+
     virtual int send(uint8_t id, char *packet, uint8_t length, unsigned long timing = 0);
 
-    virtual void set_id(uint8_t id);
-    virtual void set_error(error e);
-    virtual void set_receiver(receiver r);
+    virtual void    set_id(uint8_t id);
+    virtual void    set_error(error e);
+    virtual void    set_receiver(receiver r);
+
+    virtual uint8_t device_id();
+    virtual uint8_t acquire_id();
 
     virtual void update();
 };
