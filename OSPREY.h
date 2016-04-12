@@ -146,5 +146,4 @@ class OSPREY {
     Bus      buses[MAX_BUSES];
   private:
     uint8_t  _package_id_source;
-    uint8_t  _known_bus_ids[MAX_KNOWN_BUSES][BUS_ID_LENGTH];
 };
