@@ -1,3 +1,5 @@
+#ifndef _LINK_H_
+#define _LINK_H_
 
 /*
 
@@ -10,24 +12,25 @@
 
  */
 
-typedef void (* receiver)(uint8_t length, uint8_t *payload);
+
+typedef void (* receiver)(uint8_t id, uint8_t *payload, uint8_t length);
 typedef void (* error)(uint8_t code, uint8_t data);
 
 class Link {
   public:
-    //virtual ~Link();
+    virtual int receive() = 0;
+    virtual int receive(unsigned long duration) = 0;
 
-    virtual int receive();
-    virtual int receive(unsigned long duration);
+    virtual int send(uint8_t id, char *packet, uint8_t length, unsigned long timing = 0) = 0;
 
-    virtual int send(uint8_t id, char *packet, uint8_t length, unsigned long timing = 0);
+    virtual void    set_id(uint8_t id) = 0;
+    virtual void    set_error(error e) = 0;
+    virtual void    set_receiver(receiver r) = 0;
 
-    virtual void    set_id(uint8_t id);
-    virtual void    set_error(error e);
-    virtual void    set_receiver(receiver r);
+    virtual uint8_t device_id() = 0;
+    virtual uint8_t acquire_id() = 0;
 
-    virtual uint8_t device_id();
-    virtual uint8_t acquire_id();
-
-    virtual void update();
+    virtual void update() = 0;
 };
+
+#endif
