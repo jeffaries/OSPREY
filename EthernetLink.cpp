@@ -34,8 +34,8 @@ int EthernetLink::read_bytes(EthernetClient &client, byte *contents, int length)
 //	return client.read(contents, length);
   int bytes_read = 0;	
   unsigned long start_ms = millis(); 
-  for (int i=0; i<length && client.connected() && start_ms + 10000 > millis(); i++) {
-	while (client.available() == 0 && client.connected() && start_ms + 10000 > millis()) ; // Wait for next byte 	 
+  for (int i=0; i<length && client.connected() && !(millis() - start_ms >= 10000); i++) {
+	while (client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte 	 
     contents[i] = client.read();
 	bytes_read++;
   }
@@ -47,7 +47,7 @@ int EthernetLink::receive() {
 /*  
 #ifdef DEBUGPRINT
   static unsigned long first = millis();
-  if (first + 5000 < millis()) {
+  if (millis() - first >= 5000) {
     first = millis();  
     Serial.println("Waiting for client to connect..."); 
   }
@@ -127,7 +127,7 @@ int EthernetLink::receive(unsigned long duration_us) {
   int result = FAIL;
   do {
     result = receive();
-  } while (result != ACK && !(start + duration_us < micros()));
+  } while (result != ACK && !(micros() - start >= duration_us));
   return result;
 }
 
@@ -173,7 +173,7 @@ int EthernetLink::send(uint8_t id, char *packet, uint8_t length, unsigned long t
 	  bytes_sent = _client.write((byte*) &foot, 4);
 	  _client.flush();	
     }
-  } while (result != SUCCESS && (timing_us == 0 || !(start + timing_us < micros())));
+  } while (result != SUCCESS && (timing_us == 0 || !(micros() - start >= timing_us)));
 #ifdef DEBUGPRINT
   Serial.print("Write status: "); Serial.println(result == SUCCESS); 
 #endif
@@ -181,8 +181,7 @@ int EthernetLink::send(uint8_t id, char *packet, uint8_t length, unsigned long t
   // Read ACK
   if (result == SUCCESS) {
 	result = FAIL;  
-	long code = 0; 
-    //unsigned long start_us = micros();	
+	long code = 0; ;	
     int bytes_read = read_bytes(_client, (byte*) &code, 4);
     if (bytes_read == 4 && (code == ACK || code == NAK)) result = code;	  
   }
