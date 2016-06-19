@@ -29,15 +29,15 @@ void EthernetLink::init() {
     memset(_remote_ip[i], 0, 4);
     _remote_port[i] = 0;
   }
-};
+}
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int length) {
+//	return client.read(contents, length);
   int16_t bytes_read = 0;
   uint32_t start_ms = millis();
-
-  for(int16_t i = 0; i < length && client.connected() && start_ms + 10000 > millis(); i++) {
-	  while(client.available() && client.connected() && start_ms + 10000 > millis()) ; // Wait for next byte
+  for (int i = 0; i < length && client.connected() && !(millis() - start_ms >= 10000); i++) {
+	  while (client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte
     contents[i] = client.read();
 	  bytes_read++;
   }
@@ -47,17 +47,15 @@ int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int len
 
 uint16_t EthernetLink::receive() {
   if(_server == NULL) start_listening(_local_port);
-
   /*
   #ifdef DEBUGPRINT
     static unsigned long first = millis();
-    if (first + 5000 < millis()) {
+    if (millis() - first >= 5000) {
       first = millis();
       Serial.println("Waiting for client to connect...");
     }
   #endif
   */
-
   EthernetClient client = _server->available();
   if(client) {
 
@@ -135,7 +133,7 @@ uint16_t EthernetLink::receive(uint32_t duration_us) {
   int16_t result = FAIL;
   do {
     result = receive();
-  } while (result != ACK && !(start + duration_us < micros()));
+  } while (result != ACK && !(micros() - start >= duration_us));
   return result;
 };
 
@@ -197,7 +195,7 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
   	  bytes_sent = _client.write((byte*) &foot, 4);
 	    _client.flush();
     }
-  } while(result != SUCCESS && (timing_us == 0 || !(start + timing_us < micros())));
+  } while(result != SUCCESS && (timing_us == 0 || !(micros() - start >= timing_us)));
 
   #ifdef DEBUGPRINT
     Serial.print("Write status: "); Serial.println(result == SUCCESS);
