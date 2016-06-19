@@ -136,8 +136,7 @@
       );
 
       uint16_t send(uint8_t bus, uint8_t device_id, char *payload, uint8_t length);
-      uint16_t send(uint8_t *bus_id, uint8_t device_id, uint8_t type, uint8_t hops, char *content, uint8_t length);
-      uint16_t send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length);
+      uint16_t send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length, uint8_t hops = 0);
 
       void set_routing_handler(routing_handler h);
       void update();

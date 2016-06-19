@@ -245,7 +245,7 @@ uint16_t OSPREY::send(
 };
 
 
-uint16_t OSPREY::send(uint8_t *bus_id, uint8_t device_id, uint8_t type, uint8_t hops, char *content, uint8_t length) {
+uint16_t OSPREY::send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length, uint8_t hops) {
   int package_id = generate_package_id();
   // 1 First network id lookup with direct bus connections
   for(uint8_t b = 0; b < MAX_BUSES; b++)
@@ -269,11 +269,6 @@ uint16_t OSPREY::send(uint8_t *bus_id, uint8_t device_id, uint8_t type, uint8_t 
               // Send OSPREY Package as PJON packet to the router connected to the target PJON bus
             }
   return BUS_UNREACHABLE;
-};
-
-
-uint16_t OSPREY::send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length) {
-  send(bus_id, device_id, type, 0, content, length);
 };
 
 
