@@ -165,9 +165,6 @@ void OSPREY::received(uint8_t id, uint8_t *payload, uint8_t length) {
             1
           );
         }
-
-        buses[b].link.send(id, (char *)payload, length);
-        return;
       }
 };
 
