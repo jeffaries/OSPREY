@@ -25,7 +25,6 @@
 #ifndef OSPREY_h
   #define OSPREY_h
   #include "Arduino.h"
-  #include <Link.h>
   #include <PJON.h>
 
   /* Buses buffer length */
@@ -74,7 +73,7 @@
   typedef struct {
     boolean active;                           // Bus activity state boolean
     Device  known_devices[MAX_KNOWN_DEVICES]; // Known devices in this bus
-    Link  link;                             // Link (PJON or PJON_ASK instance)
+    Link link;                                // Link (PJON or PJON_ASK instance)
   } Bus;
 
   // Package reference
@@ -135,7 +134,6 @@
         uint8_t    length
       );
 
-      uint16_t send(uint8_t bus, uint8_t device_id, char *payload, uint8_t length);
       uint16_t send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length, uint8_t hops = 0);
 
       void set_routing_handler(routing_handler h);

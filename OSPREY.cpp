@@ -213,7 +213,7 @@ void OSPREY::remove_package_reference(uint8_t bus_id[4], uint8_t packet_index) {
 
 
 uint16_t OSPREY::send(
-  Link   link,
+  Link     link,
   uint8_t  *bus_id,
   uint8_t  device_id,
   uint8_t  type,
