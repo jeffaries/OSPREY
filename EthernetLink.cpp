@@ -179,11 +179,11 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
       _current_device = id;
 
       int16_t bytes_sent = 0, bytes_total = 0;
-	    int32_t head = HEADER, foot = FOOTER, len = length;
+      int32_t head = HEADER, foot = FOOTER, len = length;
 
       bytes_sent = _client.write((byte*) &head, 4);
-	    bytes_sent = _client.write((byte*) &id, 1);
-	    bytes_sent = _client.write((byte*) &len, 4);
+      bytes_sent = _client.write((byte*) &id, 1);
+      bytes_sent = _client.write((byte*) &len, 4);
 
       do {
         bytes_sent = _client.write(&packet[bytes_total], length-bytes_total);
