@@ -25,7 +25,7 @@ void EthernetLink::init() {
   _error = NULL;
 
   for(uint8_t i = 0; i < MAX_REMOTE_NODES; i++) {
-	  _remote_id[i] = 0;
+    _remote_id[i] = 0;
     memset(_remote_ip[i], 0, 4);
     _remote_port[i] = 0;
   }
@@ -33,13 +33,13 @@ void EthernetLink::init() {
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int length) {
-//	return client.read(contents, length);
+//  return client.read(contents, length);
   int16_t bytes_read = 0;
   uint32_t start_ms = millis();
   for (int i = 0; i < length && client.connected() && !(millis() - start_ms >= 10000); i++) {
-	  while (client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte
+    while (client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte
     contents[i] = client.read();
-	  bytes_read++;
+    bytes_read++;
   }
   return bytes_read;
 };
@@ -58,14 +58,13 @@ uint16_t EthernetLink::receive() {
   */
   EthernetClient client = _server->available();
   if(client) {
-
     #ifdef DEBUGPRINT
       Serial.println("A client connected!");
     #endif
 
     // Read encapsulation header (4 bytes magic number)
     boolean header_status = true;
-	  int32_t head = 0;
+    int32_t head = 0;
     int16_t bytes_read = read_bytes(client, (byte*) &head, 4);
 
     if(bytes_read != 4 || head != HEADER) header_status = false;
@@ -76,28 +75,28 @@ uint16_t EthernetLink::receive() {
 
     uint8_t sender_id = 0;
     // Read sender device id
-  	if (header_status) {
+    if (header_status) {
       bytes_read = read_bytes(client, (byte*) &sender_id, 1);
       if(bytes_read != 1) header_status = false;
     }
 
     int32_t content_length = 0;
     // Read length of contents (4 bytes)
-  	if(header_status) {
+    if(header_status) {
       bytes_read = read_bytes(client, (byte*) &content_length, 4);
       if(bytes_read != 4 || content_length <= 0) header_status = false;
     }
 
     byte buf[content_length];
     // Read contents
-  	if (header_status) {
+    if (header_status) {
       bytes_read = read_bytes(client, (byte*) &buf, content_length);
       if(bytes_read != content_length) header_status = false;
     }
 
     int32_t foot = 0;
     // Read footer (4 bytes magic number)
-  	if(header_status) {
+    if(header_status) {
       bytes_read = read_bytes(client, (byte*) &foot, 4);
       if(bytes_read != 4 || foot != FOOTER) header_status = false;
     }
@@ -108,19 +107,19 @@ uint16_t EthernetLink::receive() {
 
     int32_t returncode = header_status ? ACK : NAK;
     int acklen = 0;
-  	// Write ACK
-  	if(client.connected()) acklen = client.write((byte*) &returncode, 4);
+    // Write ACK
+    if(client.connected()) acklen = client.write((byte*) &returncode, 4);
       client.flush();
 
     #ifdef DEBUGPRINT
       Serial.print("Sent "); Serial.print(header_status ? "ACK: " : "NAK: "); Serial.println(acklen);
     #endif
 
-  	// Call receiver callback function
-  	if(header_status) _receiver(sender_id, buf, content_length);
+    // Call receiver callback function
+    if(header_status) _receiver(sender_id, buf, content_length);
 
-  	// Close connection
-  	if(!_keep_connection || !client.connected()) client.stop();
+    // Close connection
+    if(!_keep_connection || !client.connected()) client.stop();
     return header_status;
   }
   return false;
@@ -133,7 +132,7 @@ uint16_t EthernetLink::receive(uint32_t duration_us) {
   int16_t result = FAIL;
   do {
     result = receive();
-  } while (result != ACK && !(micros() - start >= duration_us));
+  } while(result != ACK && !(micros() - start >= duration_us));
   return result;
 };
 
@@ -188,12 +187,12 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
 
       do {
         bytes_sent = _client.write(&packet[bytes_total], length-bytes_total);
-  	    bytes_total += bytes_sent;
-  	  } while(bytes_sent > 0 && bytes_total < length);
+        bytes_total += bytes_sent;
+      } while(bytes_sent > 0 && bytes_total < length);
 
       if(bytes_total == length) result = SUCCESS;
-  	  bytes_sent = _client.write((byte*) &foot, 4);
-	    _client.flush();
+      bytes_sent = _client.write((byte*) &foot, 4);
+      _client.flush();
     }
   } while(result != SUCCESS && (timing_us == 0 || !(micros() - start >= timing_us)));
 
@@ -203,8 +202,8 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
 
   // Read ACK
   if (result == SUCCESS) {
-  	result = FAIL;
-  	int32_t code = 0;
+    result = FAIL;
+    int32_t code = 0;
     int16_t bytes_read = read_bytes(_client, (byte*) &code, 4);
     if(bytes_read == 4 && (code == ACK || code == NAK)) result = code;
   }
@@ -228,7 +227,7 @@ int16_t EthernetLink::find_remote_node(uint8_t id) {
 int16_t EthernetLink::add_node(uint8_t remote_id, const uint8_t remote_ip[], uint16_t port_number) {
   // Find free slot
   int remote_id_index = find_remote_node(0);
-  if (remote_id_index < 0) return remote_id_index; // All slots taken
+  if(remote_id_index < 0) return remote_id_index; // All slots taken
 
   _remote_id[remote_id_index] = remote_id;
   memcpy(_remote_ip[remote_id_index], remote_ip, 4);
@@ -238,7 +237,7 @@ int16_t EthernetLink::add_node(uint8_t remote_id, const uint8_t remote_ip[], uin
 
 
 void EthernetLink::start_listening(uint16_t port_number) {
-  if (_server != NULL) return; // Already started
+  if(_server != NULL) return; // Already started
 
   #ifdef DEBUGPRINT
     Serial.print("Started listening for connections on port "); Serial.println(port_number);
