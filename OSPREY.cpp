@@ -128,17 +128,14 @@ void OSPREY::received(uint8_t id, uint8_t *payload, uint8_t length) {
   uint8_t  sender_bus_id[] = {payload[4], payload[5], payload[6], payload[7]};
   uint8_t  type = payload[9];
 
-  // Remove
-  if(type == ACK)
-    remove_package_reference(recipient_bus_id, package_id);
-
   // Check if package's recipient is this device on one of its buses
   for(uint8_t b = 0; b < MAX_BUSES; b++)
     if(buses[b].active)
       if(bus_id_equality(payload, buses[b].link.bus_id)) {
-        if(payload[0] == ACK && length == 1)
-          remove_package_reference(recipient_bus_id, payload[11] << 8 | payload[12] & 0xFF);
-        else if(id == buses[b].link.device_id()) {
+        if(id == buses[b].link.device_id()) {
+          if(type == ACK)
+            remove_package_reference(recipient_bus_id, package_id);
+
           _routing_handler(
             recipient_bus_id,                       // Recipient bus_id
             id,                                     // Recipient device_id
@@ -169,9 +166,9 @@ void OSPREY::received(uint8_t id, uint8_t *payload, uint8_t length) {
 };
 
 
-void OSPREY::remove_package_reference(uint8_t bus_id[4], uint8_t packet_index) {
+void OSPREY::remove_package_reference(uint8_t bus_id[4], uint16_t package_id) {
   for(uint8_t p = 0; p < MAX_PACKAGE_REFERENCES; p++)
-    if(bus_id_equality(package_references[p].bus_id, bus_id) && package_references[p].packet_index == packet_index) {
+    if(bus_id_equality(package_references[p].bus_id, bus_id) && package_references[p].package_id == package_id) {
       package_references[p].bus_id[0] = 0;
       package_references[p].bus_id[1] = 0;
       package_references[p].bus_id[2] = 0;
@@ -227,15 +224,15 @@ uint16_t OSPREY::send(
 
   if(payload == NULL) return FAIL;
 
-  memcpy(bus_id, payload, 4);
-  memcpy(link.bus_id, payload + 4, 4);
+  memcpy(payload, bus_id, 4);
+  memcpy(payload + 4, link.bus_id, 4);
   payload[8] = link.device_id();
   payload[9] = type;
   payload[10] = (hops < MAX_HOPS) ? hops + 1 : 0;
   // TODO - detect max hops, send back HOPS_LIMIT error package
   payload[11] = package_id  >> 8;
   payload[12] = package_id & 0xFF;
-  memcpy(content, payload, length);
+  memcpy(payload + 13, content, length);
   add_package_reference(bus_id, package_id, link.send(device_id, payload, length + 12));
   free(payload);
   return packet;
