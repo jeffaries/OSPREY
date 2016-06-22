@@ -175,6 +175,9 @@ void OSPREY::remove_package_reference(uint8_t bus_id[4], uint16_t package_id) {
       package_references[p].bus_id[3] = 0;
       package_references[p].packet_index = 0;
       package_references[p].package_id = 0;
+      for(uint8_t b = 0; b < MAX_BUSES; b++)
+        if(bus_id_equality(package_references[p].bus_id, buses[b].bus_id)
+          buses[b].remove(package_references[p].packet_index);
     }
 };
 
