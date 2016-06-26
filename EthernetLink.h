@@ -3,7 +3,7 @@
 
 #include <Link.h>
 #include <Ethernet.h>
-#include <EthernetClientImproved.h>
+#include <EthernetClient.h>
 #include <EthernetServer.h>
 #include <PJON.h>
 
