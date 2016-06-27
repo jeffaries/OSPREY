@@ -37,8 +37,8 @@ void EthernetLink::init() {
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int length) {
-  int bytes_read = 0;
-  unsigned long start_ms = millis();
+  int16_t bytes_read = 0;
+  uint32_t start_ms = millis();
 
   for(uint16_t i = 0; i < length && client.connected() && !(millis() - start_ms >= 10000); i++) {
     while(client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte
@@ -60,7 +60,7 @@ int16_t EthernetLink::receive() {
     #endif
   }
 
-  int return_value = FAIL;
+  int16_t return_value = FAIL;
   if(_client_in.connected() && _client_in.available()) {
 
     #ifdef DEBUGPRINT
@@ -69,8 +69,8 @@ int16_t EthernetLink::receive() {
 
     // Read encapsulation header (4 bytes magic number)
     bool ok = true;
-    long head = 0;
-    int bytes_read = 0;
+    int32_t head = 0;
+    int16_t bytes_read = 0;
     do { // Try to resync if we lost position in the stream (throw avay all until HEADER found)
       bytes_read = read_bytes(_client_in, (byte*) &head, 4);
       if(bytes_read != 4) { ok = false; break; }
@@ -89,7 +89,7 @@ int16_t EthernetLink::receive() {
     }
 
     // Read length of contents (4 bytes)
-    long content_length = 0;
+    int16_t content_length = 0;
     if(ok) {
       bytes_read = read_bytes(_client_in, (byte*) &content_length, 4);
       if(bytes_read != 4 || content_length <= 0) ok = false;
@@ -103,7 +103,7 @@ int16_t EthernetLink::receive() {
     }
 
     // Read footer (4 bytes magic number)
-    long foot = 0;
+    int32_t foot = 0;
     if(ok) {
       bytes_read = read_bytes(_client_in, (byte*) &foot, 4);
       if(bytes_read != 4 || foot != FOOTER) ok = false;
@@ -114,8 +114,8 @@ int16_t EthernetLink::receive() {
     #endif
 
     // Write ACK
-    long returncode = ok ? ACK : NAK;
-    int acklen = 0;
+    int32_t returncode = ok ? ACK : NAK;
+    int16_t acklen = 0;
 
     if(_client_in.connected()) {
       acklen = _client_in.write((byte*) &returncode, 4);
@@ -156,7 +156,7 @@ uint16_t EthernetLink::receive(uint32_t duration_us) {
 
 uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t iming_us) {
   // Locate the node's IP address and port number
-  int pos = find_remote_node(id);
+  int16_t pos = find_remote_node(id);
 
   #ifdef DEBUGPRINT
     Serial.print("Send to server pos="); Serial.println(pos);
@@ -173,8 +173,8 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
     _client_out.stop();
   }
 
-  unsigned long start = millis();
-  int result = FAIL;
+  uint32_t start = millis();
+  int16_t result = FAIL;
 
   #ifdef DEBUGPRINT
     if(!_client_out.connected()) Serial.println("Trying to connect...");
@@ -194,8 +194,8 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
 
   // Try to deliver the package
   _currentDevice = id;
-  int bytes_sent = 0, bytes_total = 0;
-  long head = HEADER, foot = FOOTER, len = length;
+  int16_t bytes_sent = 0, bytes_total = 0;
+  int32_t head = HEADER, foot = FOOTER, len = length;
   bytes_sent = _client_out.write((byte*) &head, 4);
   bytes_sent = _client_out.write((byte*) &id, 1);
   bytes_sent = _client_out.write((byte*) &len, 4);
@@ -235,8 +235,8 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
 
 
 int16_t EthernetLink::send_with_duration(uint8_t id, char *packet, uint8_t length, unsigned long duration_us) {
-  unsigned long start = micros();
-  int result = FAIL;
+  uint32_t start = micros();
+  int16_t result = FAIL;
   do {
     result = send(id, packet, length);
   } while(result == FAIL && micros() - start <= duration_us);
@@ -251,7 +251,7 @@ int16_t EthernetLink::find_remote_node(uint8_t id) {
 
 int16_t EthernetLink::add_node(uint8_t remote_id, const uint8_t remote_ip[], uint16_t port_number) {
   // Find free slot
-  int remote_id_index = find_remote_node(0);
+  int16_t remote_id_index = find_remote_node(0);
   if(remote_id_index < 0) return remote_id_index; // All slots taken
   _remote_id[remote_id_index] = remote_id;
   memcpy(_remote_ip[remote_id_index], remote_ip, 4);
