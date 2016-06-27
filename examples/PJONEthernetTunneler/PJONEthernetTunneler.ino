@@ -5,7 +5,7 @@
  * of this sketch which will again deliver it to a PJON media on its side.
  * 
  * Arduino A - <PJON wired or wireless> - PJONEthernetTunnelB - <TCP/IP> - PJONEthernetTunnelA - <PJON wired or wireless> - Arduino B
- *  (ID 45)                                    (ID 44)                           (ID 45)                                     (ID 44)
+ *  (ID 44)                                    (ID 45)                           (ID 44)                                     (ID 45)
  * 
  * So device A can send a message to device B, and the message will be delivered to device B on the remote media.
  * And also in the reverse direction. The device acts as a stand-in Proxy, connecting two buses with a fixed recipient on each side.
@@ -22,8 +22,8 @@ byte gateway[] = { 192, 168, 1, 1 };
 byte subnet[] = { 255, 255, 255, 0 };
 
 // Devices
-uint8_t this_device = 1; // 0 or 1, chooses which PJON/Ethernet device this is
-uint8_t ids[] = { 44, 45 };
+uint8_t this_device = 0; // 0 or 1, chooses which PJON/Ethernet device this is
+uint8_t ids[] = { 45, 44 };
 byte ip[][4] = { { 192, 168, 1, 10 }, { 192, 168, 1, 11 } };
 byte mac[][6] = { { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }, { 0xDF, 0xAD, 0xBE, 0xEF, 0xFE, 0xED } };  
 
@@ -65,7 +65,7 @@ void setup() {
   delay(1000);
   ethernetLink.set_receiver(ethernet_receiver);
   ethernetLink.add_node(ids[1-this_device], ip[1-this_device]);
-  ethernetLink.keep_connection(true);
+  ethernetLink.keep_connection(false);
   ethernetLink.start_listening();
 #endif
 
