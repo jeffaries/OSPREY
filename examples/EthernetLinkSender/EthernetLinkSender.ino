@@ -32,7 +32,7 @@ void loop() {
   unsigned long now = millis();
   if (last + 5000 <= now) {
     last = now;
-    ethernetLink.send(REMOTEID1, "HOW DO YOU DO?", 15); // Including null-term, so safe to print
+    ethernetLink.send_with_duration(REMOTEID1, "HOW DO YOU DO?", 15, 1000000); // Including null-term, so safe to print
   }
   
   ethernetLink.update();

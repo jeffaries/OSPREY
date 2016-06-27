@@ -5,6 +5,7 @@
   #include <Ethernet.h>
   #include <EthernetClient.h>
   #include <EthernetServer.h>
+  #include <PJON.h>
 
   #define MAX_REMOTE_NODES 10
   #define DEFAULT_PORT     9000
@@ -25,30 +26,34 @@
     unsigned short _remote_port[MAX_REMOTE_NODES];
 
     EthernetServer *_server;
-    EthernetClient _client;
-    short _current_device;
-    bool _keep_connection;
+    EthernetClient _client_out; // Created as an outgoing connection
+    EthernetClient _client_in;  // Accepted incoming connection
+  	short _currentDevice;
+  	bool _keep_connection;
 
-    void init();
-    int16_t find_remote_node(uint8_t id);
-    int16_t read_bytes(EthernetClient &client, byte *contents, int length);
+  	void init();
+  	int16_t find_remote_node(uint8_t id);
+  	int16_t read_bytes(EthernetClient &client, byte *contents, int length);
   public:
-    EthernetLink() { init(); }
-    EthernetLink(uint8_t id) { init(); set_id(id); }
+  	EthernetLink() { init(); };
+  	EthernetLink(uint8_t id) { init(); set_id(id); };
 
-    int16_t add_node(uint8_t remote_id, const uint8_t remote_ip[], uint16_t port_number = DEFAULT_PORT);
-    void start_listening(uint16_t port_number = DEFAULT_PORT);
-    void stop_listening();
+  	int16_t add_node(uint8_t remote_id, const uint8_t remote_ip[], uint16_t port_number = DEFAULT_PORT);
+  	void start_listening(uint16_t port_number = DEFAULT_PORT);
+  	void stop_listening();
 
-    // Whether to keep outgoing connection live until we need connect to another EthernetLink node
-    void keep_connection(bool keep) { _keep_connection = keep; };
+  	// Whether to keep outgoing connection live until we need connect to another EthernetLink node
+  	void keep_connection(bool keep) { _keep_connection = keep; };
 
-    /* Overridden functions below */
+    // Keep trying to send for a maximum duration
+    int16_t send_with_duration(uint8_t id, char *packet, uint8_t length, unsigned long duration_us);
+
+  	//**************** Overridden functions below *******************
 
     uint16_t receive();
-    uint16_t receive(uint32_t duration_us);
+    uint16_t receive(unsigned long duration_us);
 
-    uint16_t send(uint8_t id, char *packet, uint8_t length, unsigned long timing_us = 0);
+  	uint16_t send(uint8_t id, char *packet, uint8_t length, unsigned long timing_us = 0);
 
     void set_id(uint8_t id) { _local_id = id; };
     void set_error(error e) { _error = e; };
