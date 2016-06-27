@@ -36,6 +36,10 @@ PJONLink pjonLink<SoftwareBitBang>(LOCALID);
 EthernetLink ethernetLink(LOCALID);
 
 void setup() {
+  // Disable SD on Ethernet shield to avoid interference
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
+  
   Ethernet.begin(mac, ip); //, gateway, subnet);
   pjonLink.set_pin(PJONPIN);
   ethernetLink.add_node(REMOTEID1, REMOTEIP1);

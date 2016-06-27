@@ -3,16 +3,20 @@
 #include <EthernetLink.h>
 
 // TODO:
+// 0. Resync stream if lost position, search for HEADER
 // 1. Checksum
 // 2. Retransmission if not ACKED
 // 3. Support ENC28J60 based Ethernet shields
+// 4. FIFI queue class common with PJON?
+
+// PJON max message size, accept setting it from outside (#ifndef SIZE #define SIZE 50 #endif)
 
 // Magic number to verify that we are aligned with telegram start and end
 #define HEADER 0x18ABC427
 #define FOOTER 0x9ABE8873
 #define SUCCESS 0x101
 
-#define DEBUGPRINT
+//#define DEBUGPRINT
 
 void EthernetLink::init() {
   _server = NULL;
@@ -24,7 +28,7 @@ void EthernetLink::init() {
   _receiver = NULL;
   _error = NULL;
 
-  for(uint8_t i = 0; i < MAX_REMOTE_NODES; i++) {
+  for (uint16_t i = 0; i < MAX_REMOTE_NODES; i++) {
     _remote_id[i] = 0;
     memset(_remote_ip[i], 0, 4);
     _remote_port[i] = 0;
@@ -33,98 +37,111 @@ void EthernetLink::init() {
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int length) {
-//  return client.read(contents, length);
-  int16_t bytes_read = 0;
-  uint32_t start_ms = millis();
-  for (int i = 0; i < length && client.connected() && !(millis() - start_ms >= 10000); i++) {
-    while (client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte
+  int bytes_read = 0;
+  unsigned long start_ms = millis();
+
+  for(uint16_t i = 0; i < length && client.connected() && !(millis() - start_ms >= 10000); i++) {
+    while(client.available() == 0 && client.connected() && !(millis() - start_ms >= 10000)) ; // Wait for next byte
     contents[i] = client.read();
     bytes_read++;
   }
   return bytes_read;
-};
+}
 
-
-uint16_t EthernetLink::receive() {
+int16_t EthernetLink::receive() {
   if(_server == NULL) start_listening(_local_port);
-  /*
-  #ifdef DEBUGPRINT
-    static unsigned long first = millis();
-    if (millis() - first >= 5000) {
-      first = millis();
-      Serial.println("Waiting for client to connect...");
-    }
-  #endif
-  */
-  EthernetClient client = _server->available();
-  if(client) {
+  // Accept new incoming connection if connection has been lost
+  if(!_keep_connection || !_client_in.connected()) {
+    _client_in.stop();
+    _client_in = _server->available();
+
     #ifdef DEBUGPRINT
-      Serial.println("A client connected!");
+      if(_client_in == true) Serial.println("A client connected!");
+    #endif
+  }
+
+  int return_value = FAIL;
+  if(_client_in.connected() && _client_in.available()) {
+
+    #ifdef DEBUGPRINT
+      Serial.println("Received data from client!");
     #endif
 
     // Read encapsulation header (4 bytes magic number)
-    boolean header_status = true;
-    int32_t head = 0;
-    int16_t bytes_read = read_bytes(client, (byte*) &head, 4);
-
-    if(bytes_read != 4 || head != HEADER) header_status = false;
+    bool ok = true;
+    long head = 0;
+    int bytes_read = 0;
+    do { // Try to resync if we lost position in the stream (throw avay all until HEADER found)
+      bytes_read = read_bytes(_client_in, (byte*) &head, 4);
+      if(bytes_read != 4) { ok = false; break; }
+    } while(head != HEADER);
 
     #ifdef DEBUGPRINT
-      Serial.print("Read header, status: "); Serial.println(header_status);
+      Serial.print("Read header, status: "); Serial.println(ok);
     #endif
+
+    // Read sender device id
 
     uint8_t sender_id = 0;
-    // Read sender device id
-    if (header_status) {
-      bytes_read = read_bytes(client, (byte*) &sender_id, 1);
-      if(bytes_read != 1) header_status = false;
+    if(ok) {
+      bytes_read = read_bytes(_client_in, (byte*) &sender_id, 1);
+      if(bytes_read != 1) ok = false;
     }
 
-    int32_t content_length = 0;
     // Read length of contents (4 bytes)
-    if(header_status) {
-      bytes_read = read_bytes(client, (byte*) &content_length, 4);
-      if(bytes_read != 4 || content_length <= 0) header_status = false;
+    long content_length = 0;
+    if(ok) {
+      bytes_read = read_bytes(_client_in, (byte*) &content_length, 4);
+      if(bytes_read != 4 || content_length <= 0) ok = false;
     }
 
-    byte buf[content_length];
     // Read contents
-    if (header_status) {
-      bytes_read = read_bytes(client, (byte*) &buf, content_length);
-      if(bytes_read != content_length) header_status = false;
+    byte buf[content_length];
+    if(ok) {
+      bytes_read = read_bytes(_client_in, (byte*) &buf, content_length);
+      if(bytes_read != content_length) ok = false;
     }
 
-    int32_t foot = 0;
     // Read footer (4 bytes magic number)
-    if(header_status) {
-      bytes_read = read_bytes(client, (byte*) &foot, 4);
-      if(bytes_read != 4 || foot != FOOTER) header_status = false;
+    long foot = 0;
+    if(ok) {
+      bytes_read = read_bytes(_client_in, (byte*) &foot, 4);
+      if(bytes_read != 4 || foot != FOOTER) ok = false;
     }
 
     #ifdef DEBUGPRINT
-      Serial.print("Status before sending ACK: "); Serial.println(header_status);
+      Serial.print("Status before sending ACK: "); Serial.println(ok);
     #endif
 
-    int32_t returncode = header_status ? ACK : NAK;
-    int acklen = 0;
     // Write ACK
-    if(client.connected()) acklen = client.write((byte*) &returncode, 4);
-      client.flush();
+    long returncode = ok ? ACK : NAK;
+    int acklen = 0;
+
+    if(_client_in.connected()) {
+      acklen = _client_in.write((byte*) &returncode, 4);
+      _client_in.flush();
+    }
 
     #ifdef DEBUGPRINT
-      Serial.print("Sent "); Serial.print(header_status ? "ACK: " : "NAK: "); Serial.println(acklen);
+      Serial.print("Sent "); Serial.print(ok ? "ACK: " : "NAK: "); Serial.println(acklen);
     #endif
 
     // Call receiver callback function
-    if(header_status) _receiver(sender_id, buf, content_length);
+    if(ok) _receiver(sender_id, buf, content_length);
 
     // Close connection
-    if(!_keep_connection || !client.connected()) client.stop();
-    return header_status;
+    if(!_keep_connection || !_client_in.connected()) _client_in.stop();
+
+    return_value = returncode;
   }
-  return false;
-  // TODO: Call error callback at appropriate times with appropriate codes
+
+  // Close connection
+  if(!_keep_connection || !_client_in.connected()) _client_in.stop();
+
+  return return_value;
 };
+
+// TODO: Call error callback at appropriate times with appropriate codes
 
 
 uint16_t EthernetLink::receive(uint32_t duration_us) {
@@ -132,80 +149,79 @@ uint16_t EthernetLink::receive(uint32_t duration_us) {
   int16_t result = FAIL;
   do {
     result = receive();
-  } while(result != ACK && !(micros() - start >= duration_us));
+  } while(result != ACK && micros() - start <= duration_us);
   return result;
 };
 
 
 uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t iming_us) {
   // Locate the node's IP address and port number
-  int16_t remote_id_index = find_remote_node(id);
+  int pos = find_remote_node(id);
 
   #ifdef DEBUGPRINT
-    Serial.print("Send to server remote_id_index="); Serial.println(remote_id_index);
+    Serial.print("Send to server pos="); Serial.println(pos);
   #endif
 
-  if(remote_id_index < 0) return FAIL;
+  if(pos < 0) return FAIL;
 
-  EthernetClient _client;
-
-  // Try to deliver the package
-  if(!_client.connected()) _client.stop();
-
-  if(!_keep_connection || (_current_device != id && _client.connected())) {
+  // Try to connect to server if not already connected
+  if(_keep_connection && !_client_out.connected()) _client_out.stop();
+  if(!_keep_connection  || (_currentDevice != id && _client_out.connected())) {
     #ifdef DEBUGPRINT
-      if (_keep_connection && _current_device != -1) Serial.println("Switching connection to another server.");
+      if(_keep_connection && _currentDevice != -1) Serial.println("Switching connection to another server.");
     #endif
-    while(_client.connected()) _client.stop();
+    _client_out.stop();
   }
 
-  uint32_t start = micros();
-  int32_t result = FAIL;
+  unsigned long start = millis();
+  int result = FAIL;
 
   #ifdef DEBUGPRINT
-    if (!_client.connected()) Serial.println("Trying to connect...");
+    if(!_client_out.connected()) Serial.println("Trying to connect...");
   #endif
 
+  bool connected = _keep_connection && _client_out.connected();
+  if(!connected) {
+    connected = _client_out.connect(_remote_ip[pos], _remote_port[pos]);
+    #ifdef DEBUGPRINT
+      Serial.println(connected ? "Connected to server!" : "Failed in connecting to server!");
+    #endif
+  }
+  if(!connected) {
+    _client_out.stop();
+    return FAIL; // Server is unreachable or busy
+  }
+
+  // Try to deliver the package
+  _currentDevice = id;
+  int bytes_sent = 0, bytes_total = 0;
+  long head = HEADER, foot = FOOTER, len = length;
+  bytes_sent = _client_out.write((byte*) &head, 4);
+  bytes_sent = _client_out.write((byte*) &id, 1);
+  bytes_sent = _client_out.write((byte*) &len, 4);
   do {
-    if(
-      (_keep_connection && _client && _client.connected()) ||
-      _client.connect(_remote_ip[remote_id_index], _remote_port[remote_id_index])
-    ) {
+    bytes_sent = _client_out.write(&packet[bytes_total], length-bytes_total);
+    bytes_total += bytes_sent;
+  } while(bytes_sent > 0 && bytes_total < length);
 
-      #ifdef DEBUGPRINT
-        Serial.println("Connected to server!");
-      #endif
-
-      _current_device = id;
-
-      int16_t bytes_sent = 0, bytes_total = 0;
-      int32_t head = HEADER, foot = FOOTER, len = length;
-
-      bytes_sent = _client.write((byte*) &head, 4);
-      bytes_sent = _client.write((byte*) &id, 1);
-      bytes_sent = _client.write((byte*) &len, 4);
-
-      do {
-        bytes_sent = _client.write(&packet[bytes_total], length-bytes_total);
-        bytes_total += bytes_sent;
-      } while(bytes_sent > 0 && bytes_total < length);
-
-      if(bytes_total == length) result = SUCCESS;
-      bytes_sent = _client.write((byte*) &foot, 4);
-      _client.flush();
-    }
-  } while(result != SUCCESS && (timing_us == 0 || !(micros() - start >= timing_us)));
+  if(bytes_total == length) result = SUCCESS;
+  bytes_sent = _client_out.write((byte*) &foot, 4);
+  if(result == SUCCESS) _client_out.flush();
 
   #ifdef DEBUGPRINT
     Serial.print("Write status: "); Serial.println(result == SUCCESS);
   #endif
 
+  // If the other side is sending as well, we need to allow it to be read and ACKed,
+  // otherwise we have a deadlock where both are waiting for ACK and will time out unsuccessfully.
+  receive();
+
   // Read ACK
   if (result == SUCCESS) {
     result = FAIL;
-    int32_t code = 0;
-    int16_t bytes_read = read_bytes(_client, (byte*) &code, 4);
-    if(bytes_read == 4 && (code == ACK || code == NAK)) result = code;
+    long code = 0;
+    int bytes_read = read_bytes(_client_out, (byte*) &code, 4);
+    if (bytes_read == 4 && (code == ACK || code == NAK)) result = code;
   }
 
   #ifdef DEBUGPRINT
@@ -213,13 +229,22 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t i
   #endif
 
   // Disconnect
-  if(!_keep_connection) _client.stop();
+  if(!_keep_connection) _client_out.stop();
   return result;  // FAIL, ACK or NAK
 };
 
 
+int16_t EthernetLink::send_with_duration(uint8_t id, char *packet, uint8_t length, unsigned long duration_us) {
+  unsigned long start = micros();
+  int result = FAIL;
+  do {
+    result = send(id, packet, length);
+  } while(result == FAIL && micros() - start <= duration_us);
+  return result;
+};
+
 int16_t EthernetLink::find_remote_node(uint8_t id) {
-  for(int8_t i = 0; i < MAX_REMOTE_NODES; i++) if(_remote_id[i] == id) return i;
+  for(int i = 0; i < MAX_REMOTE_NODES; i++) if(_remote_id[i] == id) return i;
   return -1;
 };
 
@@ -228,7 +253,6 @@ int16_t EthernetLink::add_node(uint8_t remote_id, const uint8_t remote_ip[], uin
   // Find free slot
   int remote_id_index = find_remote_node(0);
   if(remote_id_index < 0) return remote_id_index; // All slots taken
-
   _remote_id[remote_id_index] = remote_id;
   memcpy(_remote_ip[remote_id_index], remote_ip, 4);
   _remote_port[remote_id_index] = port_number;
@@ -242,7 +266,6 @@ void EthernetLink::start_listening(uint16_t port_number) {
   #ifdef DEBUGPRINT
     Serial.print("Started listening for connections on port "); Serial.println(port_number);
   #endif
-
   _server = new EthernetServer(port_number);
   _server->begin();
 };

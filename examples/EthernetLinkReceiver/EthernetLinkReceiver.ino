@@ -32,7 +32,7 @@ void loop() {
 }
 
 void receiver_function(uint8_t id, uint8_t *payload, uint8_t length) {
-  ethernetLink.send(REMOTEID1, "FINE, THANK YOU!", 17); // Including null-term, so safe to print
+  ethernetLink.send_with_duration(REMOTEID1, "FINE, THANK YOU!", 17, 1000000); // Including null-term, so safe to print
   Serial.print("Received request: "); Serial.println((const char *) payload);}
 
 void error_function(uint8_t code, uint8_t data) {
