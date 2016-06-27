@@ -3,9 +3,13 @@
 #include <EthernetLink.h>
 
 // TODO:
+// 0. Resync stream if lost position, search for HEADER
 // 1. Checksum
 // 2. Retransmission if not ACKED
 // 3. Support ENC28J60 based Ethernet shields
+// 4. FIFI queue class common with PJON?
+
+// PJON max message size, accept setting it from outside (#ifndef SIZE #define SIZE 50 #endif)
 
 // Magic number to verify that we are aligned with telegram start and end
 #define HEADER 0x18ABC427
@@ -69,8 +73,11 @@ int EthernetLink::receive() {
     // Read encapsulation header (4 bytes magic number)
     bool ok = true;  
     long head = 0;
-    int bytes_read = read_bytes(_client_in, (byte*) &head, 4);
-    if (bytes_read != 4 || head != HEADER) ok = false;
+    int bytes_read = 0;
+    do { // Try to resync if we lost position in the stream (throw avay all until HEADER found)
+      bytes_read = read_bytes(_client_in, (byte*) &head, 4);
+      if (bytes_read != 4) { ok = false; break; }
+    } while (head != HEADER);
 #ifdef DEBUGPRINT
     Serial.print("Read header, status: "); Serial.println(ok); 
 #endif
