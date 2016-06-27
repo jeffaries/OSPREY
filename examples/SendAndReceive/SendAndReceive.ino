@@ -5,8 +5,17 @@
  * of this sketch which will also send messages to this instance.
  */
 
+//#define DEBUGPRINT
+#define LCD
+
 #include <Arduino.h>
 #include <EthernetLink.h>
+#ifdef LCD
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 20 chars and 4 line display
+#endif
 
 // Basic Ethernet settings
 byte gateway[] = { 192, 168, 1, 1 };
@@ -18,20 +27,25 @@ uint8_t ids[] = { 44, 45 };
 byte ip[][4] = { { 192, 168, 1, 10 }, { 192, 168, 1, 11 } };
 byte mac[][6] = { { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }, { 0xDF, 0xAD, 0xBE, 0xEF, 0xFE, 0xED } };  
 
-#define DEBUGPRINT
-
-#ifdef DEBUGPRINT
+// Status print variables
 int count_receive = 0, count_send = 0;
-unsigned long wr = 0, ws = 0;
 unsigned long lastprint = millis();
-#endif
 
 EthernetLink ethernetLink(ids[this_device]);
 
-void setup() {
+void setup() { 
   Serial.begin(115200);
   Serial.print("Welcome to SendAndReceive, role ");
   Serial.println(this_device);
+
+#ifdef LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0,1);
+  lcd.printstr("SendAndReceive");
+  lcd.setCursor(0,2);
+  lcd.printstr("Role "); lcd.print(this_device);
+#endif
 
   // Disable SD on Ethernet shield to avoid interference
   pinMode(4, OUTPUT);
@@ -42,13 +56,11 @@ void setup() {
   ethernetLink.set_receiver(ethernet_receiver);
   ethernetLink.add_node(ids[1-this_device], ip[1-this_device]);
   ethernetLink.keep_connection(true);
-  ethernetLink.start_listening();
+  ethernetLink.start_listening();  
 }
 
 void loop() {
-  unsigned long start = micros();
   ethernetLink.receive();
-  wr += (micros()-start);
   ethernetLink.update();
 
   // Send a packet
@@ -56,25 +68,27 @@ void loop() {
   static unsigned long last_send = 0;
   if (micros() - last_send >= 1000 || (started_send && !completed_send)) {
     last_send = micros();
-    start = micros();
     started_send = true; completed_send = false;
     int result = ethernetLink.send(ids[1-this_device], "HELLO!", 7, 1000);
-    ws += (micros()-start);
     if (result == ACK) { count_send++; started_send = false; completed_send = false; }
   }
 
-#ifdef DEBUGPRINT
   // Show statistics
   if (millis() - lastprint > 10000) {
     lastprint = millis();
+#ifdef DEBUGPRINT    
     Serial.print("Received "); Serial.print(count_receive);
     Serial.print(", sent "); Serial.print(count_send);
-    Serial.print(" IP packets in 10s. WR="); Serial.print(wr);
-    Serial.print(", WS="); Serial.println(ws);
+    Serial.println(" IP packets in 10s.");
+#endif
+#ifdef LCD
+  lcd.setCursor(0,0);
+  lcd.printstr("Received : "); lcd.print(count_receive); lcd.printstr("  ");
+  lcd.setCursor(0,1);
+  lcd.printstr("Sent     : "); lcd.print(count_send); lcd.printstr("  ");
+#endif    
     count_receive = count_send = 0;
-    wr = ws = 0;
   }
-#endif  
 }
 
 void ethernet_receiver(uint8_t id, uint8_t *payload, uint8_t length) {
@@ -82,8 +96,8 @@ void ethernet_receiver(uint8_t id, uint8_t *payload, uint8_t length) {
 //  Serial.print("Forwarded Ethernet message from E_ID "); Serial.print(id);
 //  Serial.print(" to P_ID device "); Serial.print(ids[1-this_device]);
 //  print_payload(payload, length);
-  count_receive++;
 #endif
+  count_receive++;
 }
 
 void print_payload(uint8_t *payload, uint8_t length) {
