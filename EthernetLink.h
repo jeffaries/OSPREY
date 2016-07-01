@@ -28,7 +28,7 @@
     EthernetServer *_server;
     EthernetClient _client_out; // Created as an outgoing connection
     EthernetClient _client_in;  // Accepted incoming connection
-  	short _currentDevice;
+  	short _current_device;
   	bool _keep_connection;
 
   	void init();
