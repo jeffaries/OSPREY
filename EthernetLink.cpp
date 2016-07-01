@@ -7,12 +7,17 @@
 // 2. Retransmission if not ACKED
 // 3. Support ENC28J60 based Ethernet shields
 // 4. FIFO queue class common with PJON?
+// 5. Call error callback at appropriate times with appropriate codes
+// 6. Make it possible to accept multiple incoming connections also with keep_connection
+// 7. Encryption
+// 8. Bidirectional communication with single-socket connections
 
 // Magic number to verify that we are aligned with telegram start and end
 #define HEADER 0x18ABC427ul
 #define FOOTER 0x9ABE8873ul
 
 //#define DEBUGPRINT
+
 
 void EthernetLink::init() {
   _server = NULL;
@@ -31,6 +36,7 @@ void EthernetLink::init() {
   }
 }
 
+
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int length) {
   int16_t total_bytes_read = 0, bytes_read = 0;
   uint32_t start_ms = millis();
@@ -43,6 +49,7 @@ int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, int len
   if (bytes_read == 0) client.stop(); // Lost connection  
   return total_bytes_read;
 }
+
 
 uint16_t EthernetLink::receive() {
   if(_server == NULL) start_listening(_local_port);
@@ -82,7 +89,7 @@ uint16_t EthernetLink::receive() {
         
     // Read sender device id (1 byte) and length of contents (4 bytes)
     uint8_t sender_id = 0;
-    int16_t content_length = 0;
+    uint32_t content_length = 0;
     if(ok) {
       byte buf[5];
       bytes_read = read_bytes(_client_in, buf, 5);
@@ -141,7 +148,6 @@ uint16_t EthernetLink::receive() {
   return return_value;
 };
 
-// TODO: Call error callback at appropriate times with appropriate codes
 
 
 uint16_t EthernetLink::receive(uint32_t duration_us) {
@@ -200,9 +206,6 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t t
   memcpy(&buf[4], &id, 1);
   memcpy(&buf[5], &len, 4);
   bool ok = _client_out.write(buf, 9) == 9;
-//  bool ok = _client_out.write((byte*) &head, 4) == 4;
-//  if (ok) ok = _client_out.write((byte*) &id, 1) == 1;
-//  if (ok) ok = _client_out.write((byte*) &len, 4) == 4;
   if (ok) ok = _client_out.write((byte*) packet, length) == length;
   if (ok) ok = _client_out.write((byte*) &foot, 4) == 4;
   if (ok) _client_out.flush();
