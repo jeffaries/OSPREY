@@ -5,16 +5,19 @@
  * of this sketch which will also send messages to this instance.
  */
 
+// These defines control the behavior of this sketch
 //#define DEBUGPRINT
 //#define LCD
+#define SINGLE_SOCKET false
+#define KEEP_CONNECTION false
+#define THIS_DEVICE 0
 
-#include <Arduino.h>
 #include <EthernetLink.h>
 #ifdef LCD
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 
-LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 20 chars and 4 line display
+LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 #endif
 
 // Basic Ethernet settings
@@ -22,7 +25,7 @@ byte gateway[] = { 192, 168, 1, 1 };
 byte subnet[] = { 255, 255, 255, 0 };
 
 // Devices
-uint8_t this_device = 0; // 0 or 1, chooses which Ethernet device this is
+uint8_t this_device = THIS_DEVICE; // 0 or 1, chooses which Ethernet device this is
 uint8_t ids[] = { 44, 45 };
 byte ip[][4] = { { 192, 168, 1, 10 }, { 192, 168, 1, 11 } };
 byte mac[][6] = { { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }, { 0xDF, 0xAD, 0xBE, 0xEF, 0xFE, 0xED } };  
@@ -55,8 +58,9 @@ void setup() {
   delay(1000);
   ethernetLink.set_receiver(ethernet_receiver);
   ethernetLink.add_node(ids[1-this_device], ip[1-this_device]);
-  ethernetLink.keep_connection(true);
-  ethernetLink.start_listening();  
+  ethernetLink.keep_connection(KEEP_CONNECTION);
+  ethernetLink.single_socket(SINGLE_SOCKET);
+  if (!SINGLE_SOCKET || this_device == 1) ethernetLink.start_listening(); // not single_socket master 
 }
 
 void loop() {
@@ -66,7 +70,7 @@ void loop() {
   // Send a packet
   static bool started_send = false, completed_send = false;
   static unsigned long last_send = 0;
-  if (micros() - last_send >= 1000 || (started_send && !completed_send)) {
+  if (micros() - last_send >= 10000 || (started_send && !completed_send)) {
     last_send = micros();
     started_send = true; completed_send = false;
     int result = ethernetLink.send_with_duration(ids[1-this_device], "HELLO!", 7, 1000);
@@ -93,8 +97,6 @@ void loop() {
 
 void ethernet_receiver(uint8_t id, uint8_t *payload, uint8_t length) {
   #ifdef DEBUGPRINT  
-//  Serial.print("Forwarded Ethernet message from E_ID "); Serial.print(id);
-//  Serial.print(" to P_ID device "); Serial.print(ids[1-this_device]);
 //  print_payload(payload, length);
   #endif
   count_receive++;
