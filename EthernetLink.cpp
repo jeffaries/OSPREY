@@ -36,6 +36,7 @@ void EthernetLink::init() {
   _single_socket = false;
   _local_id = 0;
   _current_device = -1;
+  _remote_node_count = 0;
   memset(_local_ip, 0, 4);
   _local_port = DEFAULT_PORT;
   _receiver = NULL;
@@ -46,7 +47,7 @@ void EthernetLink::init() {
     memset(_remote_ip[i], 0, 4);
     _remote_port[i] = 0;
   }
-}
+};
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, uint16_t length) {
@@ -60,7 +61,7 @@ int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, uint16_
   } while(bytes_read != 0 && total_bytes_read < length && millis() - start_ms < 10000);
   if (bytes_read == 0) stop(client); // Lost connection  
   return total_bytes_read;
-}
+};
 
 
 // Do bidirectional transfer of packets over a single socket connection by using a master-slave mode
@@ -184,7 +185,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
     return ok ? ACK : FAIL;    
   }
   return FAIL;
-}
+};
 
 
 bool EthernetLink::accept() {
@@ -199,14 +200,17 @@ bool EthernetLink::accept() {
     #endif
   }
   return connected;
-}
+};
 
 
 // Connect to a server if needed, then read incoming package and send ACK
 uint16_t EthernetLink::receive() {
   if(_server == NULL) { // Not listening for incoming connections
-    if (_single_socket) { // Single-socket mode. Only read from already established outgoing socket.
-      return single_socket_transfer(_client_out, -1, true, NULL, 0);
+    if (_single_socket) { // Single-socket mode. 
+      // Only read from already established outgoing socket, or create connection if there is only one
+      // remote node configured (no doubt about which node to connect to).
+      int16_t remote_id = _remote_node_count == 1 ? _remote_id[0] : -1;
+      return single_socket_transfer(_client_out, remote_id, true, NULL, 0);
     }
   } else {
     // Accept new incoming connection if connection has been lost
@@ -220,13 +224,13 @@ uint16_t EthernetLink::receive() {
     }
   }
   return FAIL;
-}
+};
 
 
 // Read until a specific 4 byte value is found. This will resync if stream position is lost. 
 bool EthernetLink::read_until_header(EthernetClient &client, uint32_t header) {
   uint32_t head = 0;
-  int16_t bytes_read = 0;
+  int8_t bytes_read = 0;
   bytes_read = read_bytes(client, (byte*) &head, 4);
   if(bytes_read != 4 || head != header) { // Did not get header. Lost position in stream?
     do { // Try to resync if we lost position in the stream (throw avay all until HEADER found)
@@ -236,7 +240,7 @@ bool EthernetLink::read_until_header(EthernetClient &client, uint32_t header) {
     } while(head != header);
   }
   return head == header;
-}
+};
 
 
 // Read a package from a connected client (incoming or outgoing) and send ACK
@@ -287,13 +291,12 @@ uint16_t EthernetLink::receive(EthernetClient &client) {
     #endif
 
     // Write ACK
-    int32_t returncode = ok ? ACK : NAK;
-    int16_t acklen = 0;
+    return_value = ok ? ACK : NAK;
+    int8_t acklen = 0;
     if(ok) {
-      acklen = client.write((byte*) &returncode, 4);
-      if (acklen == 4) client.flush();
+      acklen = client.write((byte*) &return_value, 2);
+      if (acklen == 2) client.flush();
     }
-    return_value = returncode;
     
     #ifdef DEBUGPRINT
       Serial.print("Sent "); Serial.print(ok ? "ACK: " : "NAK: "); Serial.println(acklen);
@@ -314,7 +317,7 @@ bool EthernetLink::disconnect_in_if_needed() {
     #endif
     stop(_client_in);
   }
-}
+};
 
 
 uint16_t EthernetLink::receive(uint32_t duration_us) {
@@ -324,6 +327,17 @@ uint16_t EthernetLink::receive(uint32_t duration_us) {
     result = receive();
   } while(result != ACK && micros() - start <= duration_us);
   return result;
+};
+
+
+uint16_t EthernetLink::poll_receive(uint8_t remote_id) {
+  // Create connection if needed but only poll for incoming packet without delivering any
+  if (_single_socket) {
+    if (!_server) return single_socket_transfer(_client_out, remote_id, true, NULL, 0);
+  } else { // Just do an ordinary receive without using the id
+    return receive();
+  }
+  return FAIL;
 };
 
 
@@ -343,7 +357,7 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t t
   disconnect_out_if_needed(result);
   
   return result;
-}
+};
 
 
 bool EthernetLink::connect(uint8_t id) {
@@ -384,7 +398,7 @@ bool EthernetLink::connect(uint8_t id) {
   }
 
   return connected;  
-}
+};
 
 
 void EthernetLink::disconnect_out_if_needed(int16_t result) {
@@ -394,7 +408,7 @@ void EthernetLink::disconnect_out_if_needed(int16_t result) {
       Serial.print("Disconnected outgoing client. OK="); Serial.println(result == ACK);
     #endif
   }
-}
+};
 
 
 uint16_t EthernetLink::send(EthernetClient &client, uint8_t id, char *packet, uint16_t length) {
@@ -420,8 +434,8 @@ uint16_t EthernetLink::send(EthernetClient &client, uint8_t id, char *packet, ui
   // Read ACK
   int16_t result = FAIL;
   if (ok) {
-    uint32_t code = 0;
-    ok = read_bytes(client, (byte*) &code, 4) == 4;
+    uint16_t code = 0;
+    ok = read_bytes(client, (byte*) &code, 2) == 2;
     if (ok && (code == ACK || code == NAK)) result = code;
   }
 
@@ -444,7 +458,7 @@ int16_t EthernetLink::send_with_duration(uint8_t id, char *packet, uint8_t lengt
 
 
 int16_t EthernetLink::find_remote_node(uint8_t id) {
-  for(int i = 0; i < MAX_REMOTE_NODES; i++) if(_remote_id[i] == id) return i;
+  for(uint8_t i = 0; i < MAX_REMOTE_NODES; i++) if(_remote_id[i] == id) return i;
   return -1;
 };
 
@@ -456,6 +470,7 @@ int16_t EthernetLink::add_node(uint8_t remote_id, const uint8_t remote_ip[], uin
   _remote_id[remote_id_index] = remote_id;
   memcpy(_remote_ip[remote_id_index], remote_ip, 4);
   _remote_port[remote_id_index] = port_number;
+  _remote_node_count++;
   return remote_id_index;
 };
 

@@ -121,6 +121,7 @@
     uint16_t _local_port;
 
     // Remote nodes
+    uint8_t  _remote_node_count;
     uint8_t  _remote_id[MAX_REMOTE_NODES];
     uint8_t  _remote_ip[MAX_REMOTE_NODES][4];
     uint16_t _remote_port[MAX_REMOTE_NODES];
@@ -163,6 +164,9 @@
     // Keep trying to send for a maximum duration
     int16_t send_with_duration(uint8_t id, char *packet, uint8_t length, unsigned long duration_us);
 
+    // In single-socket mode and acting as initiator, connect and check for incoming packets from a specific device
+    uint16_t poll_receive(uint8_t remote_id);
+    
   	//**************** Overridden functions below *******************
 
     uint16_t receive();
