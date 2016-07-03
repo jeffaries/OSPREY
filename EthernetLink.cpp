@@ -2,9 +2,13 @@
 #include <EthernetLink.h>
 #include <utility/socket.h>
 
-// TODO:
+// DONE:
 // 1. Bidirectional communication with single-socket connections, to utilize the max number of sockets better, 
 //    and to make firewall traversal easier than with two-ways socket connections.
+
+// TODO:
+// 1. Focus on single_socket without keep_connection from many sites to a master site, with the master
+//    site using OSPREY to forward packets between the networks! Should be possible out of the box. 
 // 2. Support ENC28J60 based Ethernet shields. Cheap and compact.
 // 3. Make it possible to accept multiple incoming connections also with keep_connection.
 //    This would make it possible for one Link to accept connections from multiple links without having created a
@@ -46,7 +50,7 @@ void EthernetLink::init() {
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, uint16_t length) {
-  int16_t total_bytes_read = 0, bytes_read = 0;
+  uint16_t total_bytes_read = 0, bytes_read = 0;
   uint32_t start_ms = millis();
   // NOTE: The recv/read functions return -1 if no data waiting, and 0 if socket closed!
   do {
@@ -227,7 +231,7 @@ bool EthernetLink::read_until_header(EthernetClient &client, uint32_t header) {
   if(bytes_read != 4 || head != header) { // Did not get header. Lost position in stream?
     do { // Try to resync if we lost position in the stream (throw avay all until HEADER found)
       head = head >> 8; // Make space for 8 bits to be read into the most significant byte
-      bytes_read = read_bytes(client, &((unsigned byte*) &head)[3], 1);
+      bytes_read = read_bytes(client, &((byte*) &head)[3], 1);
       if(bytes_read != 1) break;
     } while(head != header);
   }
@@ -382,15 +386,6 @@ bool EthernetLink::connect(uint8_t id) {
   return connected;  
 }
 
-/*
-void EthernetLink::stop(EthernetClient &client) {
-  client.stop();
-  // Give the network shield some slack to actually shut down the socket
-  // (ref: http://forum.arduino.cc/index.php/topic,47994.0.html#14)
-  //uint32_t start = millis();
-  //while(socketStatus(client.getSocketNumber()) != 0 && millis() - start < 1000) delay(5);
-}
-*/
 
 void EthernetLink::disconnect_out_if_needed(int16_t result) {
   if (result != ACK || !_keep_connection) {
@@ -398,8 +393,6 @@ void EthernetLink::disconnect_out_if_needed(int16_t result) {
     #ifdef DEBUGPRINT
       Serial.print("Disconnected outgoing client. OK="); Serial.println(result == ACK);
     #endif
-    uint32_t start = millis();
-    while(_client_out.status() != 0 && millis() - start < 1000) delay(1);
   }
 }
 
@@ -440,7 +433,7 @@ uint16_t EthernetLink::send(EthernetClient &client, uint8_t id, char *packet, ui
 };
 
 
-int16_t EthernetLink::send_with_duration(uint8_t id, char *packet, uint8_t length, unsigned long duration_us) {
+int16_t EthernetLink::send_with_duration(uint8_t id, char *packet, uint8_t length, uint32_t duration_us) {
   uint32_t start = micros();
   int16_t result = FAIL;
   do {
