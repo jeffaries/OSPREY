@@ -64,6 +64,8 @@
   2B. One receiver can receive from and deliver packets to unlimited initiators, _or_ unlimited initator objects
       can send to and receive from to up to 255 sites each
           
+  Note: To use the ENC28J60 shield instead of the WIZ5100 shield, include <UIPEthernet.h> before EthernetLink.h.        
+          
   OSPREY, PJON and EthernetLink
   The EthernetLink can be used standalone for simple delivery between two devices. But when using EthernetLink objects
   with OSPREY routing logic combined with PJON communication between devices, the true potential can be reached.
@@ -94,11 +96,15 @@
     Internet-attached OSPREY router on the main site.  
 */
 
+//#pragma GCC optimize ("-O2")
+
 #ifndef _ETHERNET_LINK_
   #define _ETHERNET_LINK_
 
   #include <Link.h>
-  #include <Ethernet.h>
+  #ifndef UIPETHERNET_H
+    #include <Ethernet.h>
+  #endif  
 
   // Constants
   #define ACK           6
@@ -121,6 +127,7 @@
     uint16_t _local_port;
 
     // Remote nodes
+    uint8_t  _remote_node_count;
     uint8_t  _remote_id[MAX_REMOTE_NODES];
     uint8_t  _remote_ip[MAX_REMOTE_NODES][4];
     uint16_t _remote_port[MAX_REMOTE_NODES];
@@ -163,6 +170,9 @@
     // Keep trying to send for a maximum duration
     int16_t send_with_duration(uint8_t id, char *packet, uint8_t length, unsigned long duration_us);
 
+    // In single-socket mode and acting as initiator, connect and check for incoming packets from a specific device
+    uint16_t poll_receive(uint8_t remote_id);
+    
   	//**************** Overridden functions below *******************
 
     uint16_t receive();
@@ -179,5 +189,5 @@
 
     void update() {};
   };
-
+  
 #endif

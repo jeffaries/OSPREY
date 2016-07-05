@@ -1,31 +1,41 @@
 #include <Arduino.h>
 #include <EthernetLink.h>
-#include <utility/socket.h>
 
 // DONE:
 // 1. Bidirectional communication with single-socket connections, to utilize the max number of sockets better, 
 //    and to make firewall traversal easier than with two-ways socket connections.
+// 2. Support ENC28J60 based Ethernet shields. Cheap and compact.
 
 // TODO:
 // 1. Focus on single_socket without keep_connection from many sites to a master site, with the master
 //    site using OSPREY to forward packets between the networks! Should be possible out of the box. 
-// 2. Support ENC28J60 based Ethernet shields. Cheap and compact.
-// 3. Make it possible to accept multiple incoming connections also with keep_connection.
+// 2. Make it possible to accept multiple incoming connections also with keep_connection.
 //    This would make it possible for one Link to accept connections from multiple links without having created a
 //    dedicated Link for each, just like without keep_connection, but with the speed gain.
 //    This requires modifying or skipping the EthernetServer/Client classes because only one socket per
 //    listening port is possible with these.
-// 4. Checksum. Is it needed, as this is also handled on the network layer?
-// 5. Retransmission if not ACKED. Or leave this to caller, as the result is immediately available?
-// 6. FIFO queue class common with PJON? Or skip built-in queue?
-// 7. Call error callback at appropriate times with appropriate codes. Only FAIL and TIMEOUT relevant?
-// 8. Encryption. Add extra optional encryption key parameter to add_node, plus dedicated function for server.
+// 3. Checksum. Is it needed, as this is also handled on the network layer?
+// 4. Retransmission if not ACKED. Or leave this to caller, as the result is immediately available?
+// 5. FIFO queue class common with PJON? Or skip built-in queue?
+// 6. Call error callback at appropriate times with appropriate codes. Only FAIL and TIMEOUT relevant?
+// 7. Encryption. Add extra optional encryption key parameter to add_node, plus dedicated function for server.
 
 // Magic number to verify that we are aligned with telegram start and end
 #define HEADER 0x18ABC427ul
 #define FOOTER 0x9ABE8873ul
 #define SINGLESOCKET_HEADER 0x4E92AC90ul
 #define SINGLESOCKET_FOOTER 0x7BB1E3F4ul
+
+// The UIPEthernet library used for the ENC28J60 based Ethernet shields has the correct return value from
+// the read call, while the standard Ethernet library does not follow the standard!
+#ifdef UIPETHERNET_H
+#define NOTHINGREAD 0
+#define ERRORREAD -1
+#else
+#define NOTHINGREAD -1
+#define ERRORREAD 0
+#endif
+
 
 //#define DEBUGPRINT
 
@@ -36,6 +46,7 @@ void EthernetLink::init() {
   _single_socket = false;
   _local_id = 0;
   _current_device = -1;
+  _remote_node_count = 0;
   memset(_local_ip, 0, 4);
   _local_port = DEFAULT_PORT;
   _receiver = NULL;
@@ -46,36 +57,38 @@ void EthernetLink::init() {
     memset(_remote_ip[i], 0, 4);
     _remote_port[i] = 0;
   }
-}
+};
 
 
 int16_t EthernetLink::read_bytes(EthernetClient &client, byte *contents, uint16_t length) {
-  uint16_t total_bytes_read = 0, bytes_read = 0;
+  uint16_t total_bytes_read = 0, bytes_read;
   uint32_t start_ms = millis();
+  int16_t avail;
   // NOTE: The recv/read functions return -1 if no data waiting, and 0 if socket closed!
   do {
-    while (client.available() <= 0 && client.connected() && millis() - start_ms < 10000) ;
-    bytes_read = client.read(&contents[total_bytes_read], length - total_bytes_read);
+    while ((avail = client.available()) <= 0 && client.connected() && millis() - start_ms < 10000) ;
+    bytes_read = client.read(&contents[total_bytes_read], max(0, min(avail, length - total_bytes_read)));
     if (bytes_read > 0) total_bytes_read += bytes_read;
-  } while(bytes_read != 0 && total_bytes_read < length && millis() - start_ms < 10000);
-  if (bytes_read == 0) stop(client); // Lost connection  
+  } while(bytes_read != ERRORREAD && total_bytes_read < length && millis() - start_ms < 10000);
+  if (bytes_read == ERRORREAD) stop(client); // Lost connection
   return total_bytes_read;
-}
+};
 
 
 // Do bidirectional transfer of packets over a single socket connection by using a master-slave mode
 // where the master connects and delivers packets or a placeholder, then reads packets or placeholder back
-// before closing the connection (unless letting it stay open).
+// before closing the connection (unless letting it stay open).
 uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id, bool master, char *contents, uint16_t length) {
+#ifndef NO_SINGLE_SOCKET
   #ifdef DEBUGPRINT
-    Serial.print("Single-socket transfer, id="); Serial.print(id);
-    Serial.print(", master="); Serial.println(master);
+//    Serial.print("Single-socket transfer, id="); Serial.print(id);
+//    Serial.print(", master="); Serial.println(master);
   #endif
   if (master) { // Creating outgoing connections
     // Connect or check that we are already connected to the correct server
     bool connected = id == -1 ? _client_out.connected() : connect(id);
     #ifdef DEBUGPRINT
-      Serial.println(connected ? "Has outgoing connection!" : "No outgoing connection!");
+      Serial.println(connected ? "Out conn" : "No out conn");
     #endif    
     if (!connected) return FAIL;
 
@@ -93,7 +106,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
     if (ok && numpackets_out > 0) {
        ok = send(client, id, contents, length) == ACK;
        #ifdef DEBUGPRINT
-         Serial.print("Sent packet, ok="); Serial.println(ok);
+         Serial.print("Sent p, ok="); Serial.println(ok);
        #endif
     }
     
@@ -101,7 +114,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
     uint8_t numpackets_in = 0;
     if (ok) ok = read_bytes(client, &numpackets_in, 1) == 1;
     #ifdef DEBUGPRINT
-      Serial.print("Read numpackets_in: "); Serial.println(numpackets_in);
+      Serial.print("Read np_in: "); Serial.println(numpackets_in);
     #endif
    
     // Read incoming packages if any
@@ -109,7 +122,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
       while (client.available() < 1 && client.connected()) ; 
       ok = receive(client) == ACK;
       #ifdef DEBUGPRINT
-        Serial.print("Read packet, ok="); Serial.println(ok);
+        Serial.print("Read p, ok="); Serial.println(ok);
       #endif      
     }
     
@@ -118,7 +131,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
     if (ok) ok = client.write((byte*) &foot, 4) == 4;
     if (ok) client.flush();
     #ifdef DEBUGPRINT
-      Serial.print("Sent singlesocket footer, ok="); Serial.println(ok);
+      Serial.print("Sent ss foot, ok="); Serial.println(ok);
     #endif
     
     // Disconnect
@@ -129,21 +142,21 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
     // Wait for and accept connection
     bool connected = accept();
     #ifdef DEBUGPRINT
-      Serial.println(connected ? "Has incoming connection!" : "No incoming connection!");
+//      Serial.println(connected ? "In conn" : "No in conn");
     #endif        
     if (!connected) return FAIL;
     
     // Read singlesocket header
     bool ok = read_until_header(client, SINGLESOCKET_HEADER);  
     #ifdef DEBUGPRINT
-      Serial.print("Read singlesocket header, ok="); Serial.println(ok);
+      Serial.print("Read ss head, ok="); Serial.println(ok);
     #endif
 
     // Read number of incoming packets
     uint8_t numpackets_in = 0;
     if (ok) ok = read_bytes(client, (byte*) &numpackets_in, 1) == 1;
     #ifdef DEBUGPRINT
-      Serial.print("Read numpackets_in: "); Serial.println(numpackets_in);
+      Serial.print("Read np_in: "); Serial.println(numpackets_in);
     #endif
 
     // Read incoming packets if any, send ACK for each
@@ -151,7 +164,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
       while (client.available() < 1 && client.connected()) ; 
       ok = receive(client) == ACK;
       #ifdef DEBUGPRINT
-        Serial.print("Read packet, ok="); Serial.println(ok);
+        Serial.print("Read p, ok="); Serial.println(ok);
       #endif      
     }
     
@@ -164,7 +177,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
     if (ok && numpackets_out > 0) {
       ok = send(client, id, contents, length) == ACK;
       #ifdef DEBUGPRINT
-         Serial.print("Sent packet, ok="); Serial.println(ok);
+         Serial.print("Sent p, ok="); Serial.println(ok);
       #endif
     }
     
@@ -174,7 +187,7 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
       ok = read_bytes(client, (byte*) &foot, 4) == 4;
       if (foot != SINGLESOCKET_FOOTER) ok = 0;
       #ifdef DEBUGPRINT
-        Serial.print("Read singlesocket footer, ok="); Serial.println(ok);
+        Serial.print("Read ss foot, ok="); Serial.println(ok);
       #endif
     }
     
@@ -183,8 +196,9 @@ uint16_t EthernetLink::single_socket_transfer(EthernetClient &client, int16_t id
 
     return ok ? ACK : FAIL;    
   }
+#endif  
   return FAIL;
-}
+};
 
 
 bool EthernetLink::accept() {
@@ -195,18 +209,21 @@ bool EthernetLink::accept() {
     _client_in = _server->available();
     connected = _client_in;
     #ifdef DEBUGPRINT
-      if(connected) Serial.println("A client connected!");
+      if(connected) Serial.println("Accepted");
     #endif
   }
   return connected;
-}
+};
 
 
 // Connect to a server if needed, then read incoming package and send ACK
 uint16_t EthernetLink::receive() {
   if(_server == NULL) { // Not listening for incoming connections
-    if (_single_socket) { // Single-socket mode. Only read from already established outgoing socket.
-      return single_socket_transfer(_client_out, -1, true, NULL, 0);
+    if (_single_socket) { // Single-socket mode. 
+      // Only read from already established outgoing socket, or create connection if there is only one
+      // remote node configured (no doubt about which node to connect to).
+      int16_t remote_id = _remote_node_count == 1 ? _remote_id[0] : -1;
+      return single_socket_transfer(_client_out, remote_id, true, NULL, 0);
     }
   } else {
     // Accept new incoming connection if connection has been lost
@@ -220,13 +237,13 @@ uint16_t EthernetLink::receive() {
     }
   }
   return FAIL;
-}
+};
 
 
 // Read until a specific 4 byte value is found. This will resync if stream position is lost. 
 bool EthernetLink::read_until_header(EthernetClient &client, uint32_t header) {
   uint32_t head = 0;
-  int16_t bytes_read = 0;
+  int8_t bytes_read = 0;
   bytes_read = read_bytes(client, (byte*) &head, 4);
   if(bytes_read != 4 || head != header) { // Did not get header. Lost position in stream?
     do { // Try to resync if we lost position in the stream (throw avay all until HEADER found)
@@ -236,7 +253,7 @@ bool EthernetLink::read_until_header(EthernetClient &client, uint32_t header) {
     } while(head != header);
   }
   return head == header;
-}
+};
 
 
 // Read a package from a connected client (incoming or outgoing) and send ACK
@@ -244,13 +261,13 @@ uint16_t EthernetLink::receive(EthernetClient &client) {
   int16_t return_value = FAIL;
   if(client.available() > 0) {
     #ifdef DEBUGPRINT
-      Serial.println("Received data from client!");
+      Serial.println("Recv from cl");
     #endif
 
     // Locate and read encapsulation header (4 bytes magic number)
     bool ok = read_until_header(client, HEADER);
     #ifdef DEBUGPRINT
-      Serial.print("Read header, status: "); Serial.println(ok);
+      Serial.print("Read header, stat "); Serial.println(ok);
     #endif
         
     // Read sender device id (1 byte) and length of contents (4 bytes)
@@ -283,17 +300,16 @@ uint16_t EthernetLink::receive(EthernetClient &client) {
     }
 
     #ifdef DEBUGPRINT
-      Serial.print("Status before sending ACK: "); Serial.println(ok);
+      Serial.print("Stat bfr send ACK: "); Serial.println(ok);
     #endif
 
     // Write ACK
-    int32_t returncode = ok ? ACK : NAK;
-    int16_t acklen = 0;
+    return_value = ok ? ACK : NAK;
+    int8_t acklen = 0;
     if(ok) {
-      acklen = client.write((byte*) &returncode, 4);
-      if (acklen == 4) client.flush();
+      acklen = client.write((byte*) &return_value, 2);
+      if (acklen == 2) client.flush();
     }
-    return_value = returncode;
     
     #ifdef DEBUGPRINT
       Serial.print("Sent "); Serial.print(ok ? "ACK: " : "NAK: "); Serial.println(acklen);
@@ -310,11 +326,11 @@ bool EthernetLink::disconnect_in_if_needed() {
   bool connected = _client_in.connected();
   if(!_keep_connection || !connected) {
     #ifdef DEBUGPRINT
-      if (connected) Serial.println("Disconnecting incoming client."); 
+      if (connected) Serial.println("Disc. inclient."); 
     #endif
     stop(_client_in);
   }
-}
+};
 
 
 uint16_t EthernetLink::receive(uint32_t duration_us) {
@@ -324,6 +340,17 @@ uint16_t EthernetLink::receive(uint32_t duration_us) {
     result = receive();
   } while(result != ACK && micros() - start <= duration_us);
   return result;
+};
+
+
+uint16_t EthernetLink::poll_receive(uint8_t remote_id) {
+  // Create connection if needed but only poll for incoming packet without delivering any
+  if (_single_socket) {
+    if (!_server) return single_socket_transfer(_client_out, remote_id, true, NULL, 0);
+  } else { // Just do an ordinary receive without using the id
+    return receive();
+  }
+  return FAIL;
 };
 
 
@@ -343,14 +370,14 @@ uint16_t EthernetLink::send(uint8_t id, char *packet, uint8_t length, uint32_t t
   disconnect_out_if_needed(result);
   
   return result;
-}
+};
 
 
 bool EthernetLink::connect(uint8_t id) {
   // Locate the node's IP address and port number
   int16_t pos = find_remote_node(id);
   #ifdef DEBUGPRINT
-    Serial.print("Send to server pos="); Serial.println(pos);
+    Serial.print("Send to srv pos="); Serial.println(pos);
   #endif
 
   // Break existing connection if not connected to the wanted server
@@ -358,7 +385,7 @@ bool EthernetLink::connect(uint8_t id) {
   if (connected && _current_device != id) { // Connected, but to the wrong device
     #ifdef DEBUGPRINT
       //if(_keep_connection && _current_device != -1)
-      Serial.println("Switching connection to another server.");
+      Serial.println("Switch conn to another srv");
     #endif
     stop(_client_out);
     _current_device = -1;
@@ -369,11 +396,11 @@ bool EthernetLink::connect(uint8_t id) {
   // Try to connect to server if not already connected
   if(!connected) {
     #ifdef DEBUGPRINT
-      Serial.println("Trying to connect...");
+      Serial.println("Conn..");
     #endif
     connected = _client_out.connect(_remote_ip[pos], _remote_port[pos]);
     #ifdef DEBUGPRINT
-      Serial.println(connected ? "Connected to server!" : "Failed in connecting to server!");
+      Serial.println(connected ? "Conn to srv" : "Failed conn to srv");
     #endif
     if(!connected) {
       stop(_client_out);
@@ -384,17 +411,17 @@ bool EthernetLink::connect(uint8_t id) {
   }
 
   return connected;  
-}
+};
 
 
 void EthernetLink::disconnect_out_if_needed(int16_t result) {
   if (result != ACK || !_keep_connection) {
     stop(_client_out);
     #ifdef DEBUGPRINT
-      Serial.print("Disconnected outgoing client. OK="); Serial.println(result == ACK);
+      Serial.print("Disconn outcl. OK="); Serial.println(result == ACK);
     #endif
   }
-}
+};
 
 
 uint16_t EthernetLink::send(EthernetClient &client, uint8_t id, char *packet, uint16_t length) {
@@ -410,7 +437,7 @@ uint16_t EthernetLink::send(EthernetClient &client, uint8_t id, char *packet, ui
   if (ok) client.flush();
   
   #ifdef DEBUGPRINT
-    Serial.print("Write status: "); Serial.println(ok);
+    Serial.print("Write stat: "); Serial.println(ok);
   #endif
 
   // If the other side is sending as well, we need to allow it to be read and ACKed,
@@ -420,13 +447,13 @@ uint16_t EthernetLink::send(EthernetClient &client, uint8_t id, char *packet, ui
   // Read ACK
   int16_t result = FAIL;
   if (ok) {
-    uint32_t code = 0;
-    ok = read_bytes(client, (byte*) &code, 4) == 4;
+    uint16_t code = 0;
+    ok = read_bytes(client, (byte*) &code, 2) == 2;
     if (ok && (code == ACK || code == NAK)) result = code;
   }
 
   #ifdef DEBUGPRINT
-    Serial.print("ACK status: "); Serial.println(result == ACK);
+    Serial.print("ACK stat: "); Serial.println(result == ACK);
   #endif
   
   return result;  // FAIL, ACK or NAK
@@ -444,7 +471,7 @@ int16_t EthernetLink::send_with_duration(uint8_t id, char *packet, uint8_t lengt
 
 
 int16_t EthernetLink::find_remote_node(uint8_t id) {
-  for(int i = 0; i < MAX_REMOTE_NODES; i++) if(_remote_id[i] == id) return i;
+  for(uint8_t i = 0; i < MAX_REMOTE_NODES; i++) if(_remote_id[i] == id) return i;
   return -1;
 };
 
@@ -456,6 +483,7 @@ int16_t EthernetLink::add_node(uint8_t remote_id, const uint8_t remote_ip[], uin
   _remote_id[remote_id_index] = remote_id;
   memcpy(_remote_ip[remote_id_index], remote_ip, 4);
   _remote_port[remote_id_index] = port_number;
+  _remote_node_count++;
   return remote_id_index;
 };
 
@@ -464,7 +492,7 @@ void EthernetLink::start_listening(uint16_t port_number) {
   if(_server != NULL) return; // Already started
 
   #ifdef DEBUGPRINT
-    Serial.print("Started listening for connections on port "); Serial.println(port_number);
+    Serial.print("Lst on port "); Serial.println(port_number);
   #endif
   _server = new EthernetServer(port_number);
   _server->begin();
