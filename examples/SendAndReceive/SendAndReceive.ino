@@ -7,11 +7,16 @@
 
 // These defines control the behavior of this sketch
 //#define DEBUGPRINT
+#define STATUSPRINT
 //#define LCD
-#define SINGLE_SOCKET false
-#define KEEP_CONNECTION false
+#define SINGLE_SOCKET 0
+#define KEEP_CONNECTION 1
 #define THIS_DEVICE 0
 
+// Saves some bytes of storage space if not using single-socket functionality:
+//#define NO_SINGLE_SOCKET 
+
+//#include <UIPEthernet.h>
 #include <EthernetLink.h>
 #ifdef LCD
 #include <Wire.h> 
@@ -54,13 +59,13 @@ void setup() {
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);
 
-  Ethernet.begin(mac[this_device], ip[this_device], gateway, subnet);
+  Ethernet.begin(mac[this_device], ip[this_device], gateway, gateway, subnet);
   delay(1000);
   ethernetLink.set_receiver(ethernet_receiver);
   ethernetLink.add_node(ids[1-this_device], ip[1-this_device]);
   ethernetLink.keep_connection(KEEP_CONNECTION);
   ethernetLink.single_socket(SINGLE_SOCKET);
-  if (!SINGLE_SOCKET || this_device == 1) ethernetLink.start_listening(); // not single_socket master 
+  if (!SINGLE_SOCKET || this_device == 1) ethernetLink.start_listening(); // not single_socket initiator 
 }
 
 void loop() {
@@ -70,7 +75,7 @@ void loop() {
   // Send a packet
   static bool started_send = false, completed_send = false;
   static unsigned long last_send = 0;
-  if (micros() - last_send >= 10000 || (started_send && !completed_send)) {
+  if (micros() - last_send >= 1000 || (started_send && !completed_send)) {
     last_send = micros();
     started_send = true; completed_send = false;
     int result = ethernetLink.send_with_duration(ids[1-this_device], "HELLO!", 7, 1000);
@@ -80,7 +85,7 @@ void loop() {
   // Show statistics (not too often, do not want to influence measurement)
   if (millis() - lastprint > 10000) {
     lastprint = millis();
-    #ifdef DEBUGPRINT
+    #ifdef STATUSPRINT
       Serial.print("Received "); Serial.print(count_receive);
       Serial.print(", sent "); Serial.print(count_send);
       Serial.println(" IP packets in 10s.");
