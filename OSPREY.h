@@ -28,15 +28,15 @@
   #include <PJON.h>
 
   /* Buses buffer length */
-  #define MAX_BUSES              5
+  #define MAX_BUSES              3
   /* Maximum hops before timeout */
   #define MAX_HOPS               10
   /* Known buses buffer length */
-  #define MAX_KNOWN_BUSES        5
+  #define MAX_KNOWN_BUSES        3
   /* Known devices buffer length */
   #define MAX_KNOWN_DEVICES      5
   /* Max package references kept in memory */
-  #define MAX_PACKAGE_REFERENCES 10
+  #define MAX_PACKAGE_REFERENCES 5
   /* Interval between every info packet sending in microseconds */
   #define ROUTER_INFO_TIME       15000000
 
@@ -73,7 +73,7 @@
   typedef struct {
     boolean active;                           // Bus activity state boolean
     Device  known_devices[MAX_KNOWN_DEVICES]; // Known devices in this bus
-    Link link;                                // Link (PJON or PJON_ASK instance)
+    PJON<>  *link;                            // Link (PJON or PJON_ASK instance)
   } Bus;
 
   // Package reference
@@ -110,7 +110,7 @@
   class OSPREY {
     public:
       OSPREY();
-      uint8_t add_bus(Link link, uint8_t *bus_id, uint8_t device_id, boolean router);
+      uint8_t add_bus(PJON<> *link, uint8_t *bus_id, boolean router);
       void add_package_reference(uint8_t bus_id[4], uint16_t package_id, uint8_t packet_index);
       boolean bus_id_equality(uint8_t *id_one, uint8_t *id_two);
       uint8_t count_active_buses();
@@ -121,10 +121,21 @@
       void receive(uint32_t duration);
       void received(uint8_t id, uint8_t *payload, uint8_t length);
 
-      void remove_package_reference(uint8_t bus_id[4], uint8_t packet_index);
+      void remove_package_reference(uint8_t bus_id[4], uint16_t packet_index);
 
       uint16_t send(
-        Link       link,
+        PJON<>     *link,
+        uint8_t    *bus_id,
+        uint8_t    device_id,
+        uint8_t    type,
+        uint8_t    hops,
+        uint16_t   package_id,
+        char       *content,
+        uint8_t    length
+      );
+
+      uint16_t send(
+        uint8_t    link_index,
         uint8_t    *bus_id,
         uint8_t    device_id,
         uint8_t    type,
