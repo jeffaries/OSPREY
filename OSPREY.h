@@ -47,7 +47,7 @@
   #define INTERNET_REQUEST   104
   #define PING               105
   #define REQUEST            106
-  #define DEFAULT_HEADER     MODE_INFO_BIT & SENDER_INFO_BIT & ACKNOWLEDGE_BIT // 10000111
+  #define DEFAULT_HEADER     MODE_INFO_BIT & SENDER_INFO_BIT // 10000111
 
   // Errors
   #define BUS_UNREACHABLE    256
@@ -59,6 +59,9 @@
   // States
   #define DISPATCHED         265
   #define DELIVERED          266
+
+  #define set_bit(data_byte, data_bit)   data_byte |=  (1 << data_bit)
+  #define clear_bit(data_byte, data_bit) data_byte &= ~(1 << data_bit)
 
   // Device structure
   typedef struct {
@@ -125,16 +128,16 @@
 
       void remove_package_reference(uint8_t bus_id[4], uint16_t packet_index);
 
-      send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length);
+      send(uint8_t *bus_id, uint8_t device_id, uint8_t type = ASSERT, char *content, uint8_t length);
 
-      uint16_t send(
+      uint16_t dispatch(
         uint8_t header = DEFAULT_HEADER,
         uint8_t bus_index,
         uint8_t *sender_bus_id,
         uint8_t sender_device_id = 0,
         uint8_t *recipient_bus_id,
         uint8_t recipient_device_id,
-        uint8_t type = ASSERT,
+        uint8_t type,
         char *content,
         uint8_t length,
         uint8_t hops = 0
