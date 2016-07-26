@@ -47,6 +47,7 @@
   #define INTERNET_REQUEST   104
   #define PING               105
   #define REQUEST            106
+  #define DEFAULT_HEADER     MODE_INFO_BIT & SENDER_INFO_BIT & ACKNOWLEDGE_BIT // 10000111
 
   // Errors
   #define BUS_UNREACHABLE    256
@@ -81,9 +82,10 @@
     uint8_t   bus_id[4];     // The bus where the packet is dispatched
     uint8_t   packet_index;  // Its packet id in the PJON packet buffer
     uint16_t  package_id;    // Its assigned package id from source
+    bool      shared;
   } Package_reference;
 
-  typedef void (* routing_handler)(
+  typedef void (* routing_handler) (
     uint8_t *recipient_bus_id,
     uint8_t recipient_device_id,
     uint8_t *sender_bus_id,
@@ -111,7 +113,7 @@
     public:
       OSPREY();
       uint8_t add_bus(PJON<> *link, uint8_t *bus_id, boolean router);
-      void add_package_reference(uint8_t bus_id[4], uint16_t package_id, uint8_t packet_index);
+      uint16_t add_package_reference(uint8_t bus_id[4], uint16_t package_id, uint8_t packet_index);
       boolean bus_id_equality(uint8_t *id_one, uint8_t *id_two);
       uint8_t count_active_buses();
       uint16_t generate_package_id();
@@ -123,38 +125,27 @@
 
       void remove_package_reference(uint8_t bus_id[4], uint16_t packet_index);
 
-      uint16_t send(
-        PJON<>     *link,
-        uint8_t    *bus_id,
-        uint8_t    device_id,
-        uint8_t    type,
-        uint8_t    hops,
-        uint16_t   package_id,
-        char       *content,
-        uint8_t    length
-      );
+      send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length);
 
       uint16_t send(
-        uint8_t    link_index,
-        uint8_t    *bus_id,
-        uint8_t    device_id,
-        uint8_t    type,
-        uint8_t    hops,
-        uint16_t   package_id,
-        char       *content,
-        uint8_t    length
+        uint8_t header = DEFAULT_HEADER,
+        uint8_t bus_index,
+        uint8_t *sender_bus_id,
+        uint8_t sender_device_id = 0,
+        uint8_t *recipient_bus_id,
+        uint8_t recipient_device_id,
+        uint8_t type = ASSERT,
+        char *content,
+        uint8_t length,
+        uint8_t hops = 0
       );
 
-      uint16_t send(uint8_t *bus_id, uint8_t device_id, uint8_t type, char *content, uint8_t length, uint8_t hops = 0);
-
-      void set_routing_handler(routing_handler h);
       void update();
 
-      Bus buses[MAX_BUSES];
+      Bus *buses[MAX_BUSES];
       Package_reference package_references[MAX_PACKAGE_REFERENCES];
     private:
-      uint8_t  _package_id_source;
-      routing_handler  _routing_handler;
+      uint8_t _package_id_source;
   };
 
 #endif
