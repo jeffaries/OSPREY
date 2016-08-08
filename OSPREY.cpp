@@ -40,7 +40,7 @@ OSPREY::OSPREY() {
 /* Add a bus to the OSPREY bus list. The bus will be automatically handled by
    OSPREY: */
 
-uint8_t OSPREY::add_bus(PJON<> *link, uint8_t *bus_id, boolean router) {
+uint8_t OSPREY::add_bus(Link *link) {
   for(uint8_t b = 0; b < MAX_BUSES; b++)
     if(!buses[b]->active) {
       buses[b]->active = true;

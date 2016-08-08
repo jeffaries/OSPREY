@@ -26,6 +26,11 @@
   #define OSPREY_h
   #include "Arduino.h"
   #include <PJON.h>
+  #include <Link.h>
+
+  #include "links/PJONLink/PJONOverSamplingLink.h"
+  #include "links/PJONLink/PJONSoftwareBitBangLink.h"
+  #include "links/PJONLink/PJONThroughHardwareSerialLink.h"
 
   /* Buses buffer length */
   #define MAX_BUSES              3
@@ -51,7 +56,7 @@
   #define ACKNOWLEDGE_BIT    B00000001
   #define ROUTE_REQUEST_BIT  B01000000
   #define OSPREY_BIT         B10000000
-  #define DEFAULT_HEADER     B10000111 // MODE_INFO_BIT & SENDER_INFO_BIT
+  #define DEFAULT_HEADER     B10000111  // MODE_INFO_BIT & SENDER_INFO_BIT
 
   // Errors
   #define BUS_UNREACHABLE    256
@@ -81,7 +86,7 @@
   typedef struct {
     boolean active;                           // Bus activity state boolean
     Device  known_devices[MAX_KNOWN_DEVICES]; // Known devices in this bus
-    PJON<>  *link;                            // Link (PJON or PJON_ASK instance)
+    Link  *link;                              // Link (PJON or PJON_ASK instance)
   } Bus;
 
   // Package reference
@@ -119,7 +124,7 @@
   class OSPREY {
     public:
       OSPREY();
-      uint8_t add_bus(PJON<> *link, uint8_t *bus_id, boolean router);
+      uint8_t add_bus(Link *link);
       uint16_t add_package_reference(uint8_t *bus_id, uint16_t package_id, uint8_t packet_index);
       boolean bus_id_equality(const uint8_t *id_one, const uint8_t *id_two);
       uint8_t count_active_buses();

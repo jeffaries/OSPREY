@@ -1,13 +1,15 @@
 #pragma once
 
-#include <PJONLink.h>
+#include "PJONLink.h"
 
 struct PJONOverSamplingLink : public PJONLink {
   PJON<OverSampling> bus;
 
-  PJONOverSamplingLink(uint8_t device_id) { bus.set_id(device_id); };
+  PJONOverSamplingLink(uint8_t device_id) {
+    bus.set_id(device_id);
+  };
 
-  PJONOverSamplingLink(uint8_t device_id, const uint8_t *bus_id) {
+  PJONOverSamplingLink(const uint8_t *bus_id, uint8_t device_id) {
     bus.set_id(device_id);
     bus.copy_bus_id(bus.bus_id, bus_id);
   };
@@ -27,7 +29,9 @@ struct PJONOverSamplingLink : public PJONLink {
 
   const PacketInfo &get_last_packet_info() const { return bus.last_packet_info; };
 
-  const uint8_t device_id() const { return bus.device_id(); };
-  const uint8_t *bus_id() const { return bus.bus_id; };
+  uint8_t device_id() { return bus.device_id(); };
+  uint8_t *bus_id() { return bus.bus_id; };
+
   void set_receiver(receiver r) { bus.set_receiver(r); };
+  void set_error(error r) { bus.set_error(r); };
 };
