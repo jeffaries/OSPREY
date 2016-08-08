@@ -2,18 +2,23 @@
   #define _LINK_H_
 
   /* General Link Interface, This is the basic Link Class.
-     PJON and PJON_ASK are two examples of an OSPREY link.
+     PJON<SoftwareBitBang> and PJON<ThroughHardwareSerial> are two examples of an OSPREY link.
      If you want to write you own physical layer Link library and support
      OSPREY, see the PJON Standard definition: https://github.com/gioblu/PJON/wiki
      Giovanni Blu Mitolo 2015 - gioscarab@gmail.com */
+     
+  #ifndef receiver
+    typedef void (* receiver)(uint8_t *payload, uint8_t length, const PacketInfo &packet_info);
+  #endif
 
-  typedef void (* receiver)(uint8_t id, uint8_t *payload, uint8_t length);
-  typedef void (* error)(uint8_t code, uint8_t data);
+  #ifndef error
+    typedef void (* error)(uint8_t code, uint8_t data);
+  #endif
 
   class Link {
     public:
       virtual uint8_t acquire_id() = 0;
-      virtual uint8_t     bus_id() = 0;
+      virtual uint8_t    *bus_id() = 0;
       virtual uint8_t  device_id() = 0;
 
       virtual uint16_t dispatch(
