@@ -47,7 +47,11 @@
   #define INTERNET_REQUEST   104
   #define PING               105
   #define REQUEST            106
-  #define DEFAULT_HEADER     MODE_INFO_BIT & SENDER_INFO_BIT // 10000111
+
+  #define ACKNOWLEDGE_BIT    B00000001
+  #define ROUTE_REQUEST_BIT  B01000000
+  #define OSPREY_BIT         B10000000
+  #define DEFAULT_HEADER     B10000111 // MODE_INFO_BIT & SENDER_INFO_BIT
 
   // Errors
   #define BUS_UNREACHABLE    256
@@ -116,31 +120,41 @@
     public:
       OSPREY();
       uint8_t add_bus(PJON<> *link, uint8_t *bus_id, boolean router);
-      uint16_t add_package_reference(uint8_t bus_id[4], uint16_t package_id, uint8_t packet_index);
-      boolean bus_id_equality(uint8_t *id_one, uint8_t *id_two);
+      uint16_t add_package_reference(uint8_t *bus_id, uint16_t package_id, uint8_t packet_index);
+      boolean bus_id_equality(const uint8_t *id_one, const uint8_t *id_two);
       uint8_t count_active_buses();
+      uint16_t find_bus(const uint8_t *bus_id, uint8_t id);
       uint16_t generate_package_id();
 
-      void handle_packet(uint8_t bus_id[4], uint8_t packet_index, uint8_t state);
+      void handle_packet(uint8_t *bus_id, uint8_t packet_index, uint8_t state);
 
       void receive(uint32_t duration);
-      void received(uint8_t id, uint8_t *payload, uint8_t length);
+      void received(uint8_t *payload, uint8_t length, const PacketInfo &packet_info);
 
-      void remove_package_reference(uint8_t bus_id[4], uint16_t packet_index);
+      void remove_package_reference(const uint8_t *bus_id, uint16_t packet_index);
 
-      send(uint8_t *bus_id, uint8_t device_id, uint8_t type = ASSERT, char *content, uint8_t length);
-
-      uint16_t dispatch(
-        uint8_t header = DEFAULT_HEADER,
-        uint8_t bus_index,
-        uint8_t *sender_bus_id,
-        uint8_t sender_device_id = 0,
+      uint16_t send(
         uint8_t *recipient_bus_id,
         uint8_t recipient_device_id,
+        uint8_t *sender_bus_id,
+        uint8_t sender_device_id,
         uint8_t type,
         char *content,
-        uint8_t length,
-        uint8_t hops = 0
+        uint8_t length
+      );
+
+      uint16_t dispatch(
+        uint8_t  header,
+        uint8_t  bus_index,
+        uint8_t  *sender_bus_id,
+        uint8_t  sender_device_id,
+        uint8_t  *recipient_bus_id,
+        uint8_t  recipient_device_id,
+        uint8_t  type,
+        uint8_t  hops,
+        uint16_t package_id,
+        char     *content,
+        uint8_t  length
       );
 
       void update();
