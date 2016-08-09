@@ -115,7 +115,7 @@ void OSPREY::receive(uint32_t duration) {
   for(uint8_t b = 0; b < MAX_BUSES; b++) {
     uint32_t time = micros();
     if(buses[b]->active)
-      while((uint32_t)(time + time_per_bus) >= micros())
+      while((uint32_t)(micros() - time) < time_per_bus)
         buses[b]->link->receive();
   }
 };
@@ -128,25 +128,13 @@ void OSPREY::received(uint8_t *payload, uint8_t length, const PacketInfo &packet
   uint8_t recipient_bus = find_bus(packet_info.receiver_bus_id, packet_info.receiver_id);
 
   if(recipient_bus != FAIL) {
-    if(payload[11] == ACK) return remove_package_reference(packet_info.sender_bus_id, packet_info.sender_id);
-    //_receiver(payload, length, packet_info); Call OSPREY receiver
-    /*return dispatch(
-      DEFAULT_HEADER,
-      recipient_bus,
-      &packet_info.receiver_bus_id,
-      packet_info.receiver_id,
-      &packet_info.sender_bus_id,
-      packet_info.sender_id,
-      ACK,
-      0,
-      package_id,
-      ACK,
-      1
-    );*/
+    /* if(payload[11] == ACK) return remove_package_reference(packet_info.sender_bus_id, packet_info.sender_id);
+    _receiver(payload, length, packet_info); Call OSPREY receiver
+    return dispatch(DEFAULT_HEADER, recipient_bus, &packet_info.receiver_bus_id, packet_info.receiver_id, &packet_info.sender_bus_id, packet_info.sender_id, ACK, 0, package_id, ACK, 1); */
   }
 
   if(packet_info.header & ROUTE_REQUEST_BIT) {
-    // Route package
+    // TODO - Route package
   }
 };
 
@@ -239,11 +227,11 @@ uint16_t OSPREY::dispatch(
   payload[13] = package_id & 0xFF;
   memcpy(payload + 14, content, length);
 
-  reference = add_package_reference(
+  /* reference = add_package_reference(
     buses[bus_index]->link->bus_id,
     package_id,
-    0//buses[bus_index].link->dispatch(device_id, bus_id, payload, length + 13, header);
-  );
+    buses[bus_index].link->dispatch(device_id, bus_id, payload, length + 13, header);
+  ); */
 
   free(payload);
 

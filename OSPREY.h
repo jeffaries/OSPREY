@@ -24,10 +24,10 @@
 
 #ifndef OSPREY_h
   #define OSPREY_h
-  #include "Arduino.h"
+  #include <Arduino.h>
   #include <PJON.h>
-  #include <Link.h>
 
+  #include "links/Link.h"
   #include "links/PJONLink/PJONOverSamplingLink.h"
   #include "links/PJONLink/PJONSoftwareBitBangLink.h"
   #include "links/PJONLink/PJONThroughHardwareSerialLink.h"
