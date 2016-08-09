@@ -314,7 +314,13 @@ uint16_t EthernetLink::receive(EthernetClient &client) {
     #endif
 
     // Call receiver callback function
-    if(ok) _receiver(sender_id, buf, content_length);
+    if(ok) {
+      PacketInfo packet_info;
+      memset(&packet_info, 0, sizeof packet_info);
+      packet_info.receiver_id = device_id();
+      packet_info.sender_id = sender_id;
+      _receiver(buf, content_length, packet_info);
+    }
   }
   return return_value;
 };

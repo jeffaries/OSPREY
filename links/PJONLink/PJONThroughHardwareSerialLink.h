@@ -1,8 +1,8 @@
 #pragma once
 
-#include "PJONLink.h"
+#include "links/Link.h"
 
-struct PJONThroughHardwareSerialLink : public PJONLink {
+struct PJONThroughHardwareSerialLink : public Link {
   PJON<ThroughHardwareSerial> bus;
 
   PJONThroughHardwareSerialLink(uint8_t device_id) {

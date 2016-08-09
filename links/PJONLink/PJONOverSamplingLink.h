@@ -1,8 +1,8 @@
 #pragma once
 
-#include "PJONLink.h"
+#include "links/Link.h"
 
-struct PJONOverSamplingLink : public PJONLink {
+  struct PJONOverSamplingLink : public Link {
   PJON<OverSampling> bus;
 
   PJONOverSamplingLink(uint8_t device_id) {

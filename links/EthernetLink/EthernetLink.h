@@ -101,7 +101,7 @@
 #ifndef _ETHERNET_LINK_
   #define _ETHERNET_LINK_
 
-  #include <Link.h>
+  #include "links/Link.h"
   #ifndef UIPETHERNET_H
     #include <Ethernet.h>
   #endif

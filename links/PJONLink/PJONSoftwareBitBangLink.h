@@ -1,8 +1,8 @@
 #pragma once
 
-#include "PJONLink.h"
+#include "links/Link.h"
 
-struct PJONSoftwareBitBangLink : public PJONLink {
+struct PJONSoftwareBitBangLink : public Link {
   PJON<SoftwareBitBang> bus;
 
   PJONSoftwareBitBangLink(uint8_t device_id) {
