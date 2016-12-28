@@ -19,11 +19,11 @@
 
   void update() { bus.update(); };
 
-  uint16_t dispatch(uint8_t id, uint8_t *b_id, const char *packet, uint8_t length, uint32_t timing, uint8_t header = 0) {
+  uint16_t dispatch(uint8_t id, uint8_t *b_id, const char *packet, uint16_t length, uint32_t timing, uint16_t header = 0) {
     dispatch(id, b_id, packet, length, timing, header);
   };
 
-  uint16_t send_string(uint8_t id, char *string, uint8_t length, uint8_t header = 0) {
+  uint16_t send_string(uint8_t id, char *string, uint16_t length, uint16_t header = 0) {
     bus.send_string(id, string, length, header);
   };
 

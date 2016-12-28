@@ -36,7 +36,7 @@
         uint8_t id,
         uint8_t *b_id,
         const char *packet,
-        uint8_t length,
+        uint16_t length,
         uint32_t timing,
         uint8_t header = 0
       ) = 0;
@@ -44,10 +44,10 @@
       virtual uint16_t receive() = 0;
       virtual uint16_t receive(uint32_t duration) = 0;
 
-      virtual void remove(uint16_t id) = 0;
+      virtual void remove(uint16_t index) = 0;
 
-      virtual uint16_t send(uint8_t id, char *packet, uint8_t length, uint32_t timing = 0) = 0;
-      virtual uint16_t send_string(uint8_t id, char *string, uint8_t length, uint8_t header = 0) = 0;
+      virtual uint16_t send(uint8_t id, char *packet, uint16_t length, uint16_t header = 0) = 0;
+      virtual uint16_t send_repeatedly(uint8_t id, char *packet, uint16_t length, uint16_t header = 0, uint32_t timing) = 0;
 
       virtual void set_id(uint8_t id) = 0;
       virtual void set_error(error e) = 0;
