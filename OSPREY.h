@@ -1,12 +1,11 @@
 
-            /*/\      __   __   __   __   __
+            /*\      __   __   __   __   __
             shs-    |  | |__  |__| |__| |__  \ /
            dM_d:    |__|  __| |    |  \ |__   |  0.1
-          dL:KM     Arduino compatible open-source mesh network framework
+          dL:KM     Arduino compatible open-source bus network framework
          dM56Mh     based on the PJON standard. Giovanni Blu Mitolo 2016
         yM87MM:     gioscarab@gmail.com
-        dgfi3h
-        mMfdas-
+        dgfi3h-
          NM*(Mm          /|  Copyright (c) 2014-2016,
      ___yM(U*MMo        /j|  Giovanni Blu Mitolo All rights reserved.
    _/OF/sMQWewrMNhfmmNNMN:|  Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +18,7 @@
          sMM3Mh     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
           dM6MN     See the License for the specific language governing permissions and
            dMtd:    limitations under the License.
-            shs
-            \/*/
+            \*/
 
 #ifndef OSPREY_h
   #define OSPREY_h
@@ -40,23 +38,8 @@
   #define MAX_KNOWN_BUSES        3
   /* Known devices buffer length */
   #define MAX_KNOWN_DEVICES      5
-  /* Max package references kept in memory */
-  #define MAX_PACKAGE_REFERENCES 5
   /* Interval between every info packet sending in microseconds */
   #define ROUTER_INFO_TIME       15000000
-
-  // Protocol symbols
-  #define ASSERT             100
-  #define INFO               102
-  #define INTERNET_ASSERT    103
-  #define INTERNET_REQUEST   104
-  #define PING               105
-  #define REQUEST            106
-
-  #define ACKNOWLEDGE_BIT    B00000001
-  #define ROUTE_REQUEST_BIT  B01000000
-  #define OSPREY_BIT         B10000000
-  #define DEFAULT_HEADER     B10000111  // MODE_INFO_BIT & SENDER_INFO_BIT
 
   // Errors
   #define BUS_UNREACHABLE    256
@@ -69,17 +52,12 @@
   #define DISPATCHED         265
   #define DELIVERED          266
 
-  #define set_bit(data_byte, data_bit)   data_byte |=  (1 << data_bit)
-  #define clear_bit(data_byte, data_bit) data_byte &= ~(1 << data_bit)
-
   // Device structure
   typedef struct {
     boolean active;
-    boolean router;
-    uint8_t id;
     uint8_t bus_id[4];
-    uint8_t known_bus_ids[MAX_KNOWN_BUSES][4];
-    uint8_t name[5];
+    uint8_t id;
+    boolean router;
   } Device;
 
   // Bus structure
@@ -89,77 +67,65 @@
     Link  *link;                              // Link (PJON or PJON_ASK instance)
   } Bus;
 
-  // Package reference
-  typedef struct {
-    uint8_t   bus_id[4];     // The bus where the packet is dispatched
-    uint8_t   packet_index;  // Its packet id in the PJON packet buffer
-    uint16_t  package_id;    // Its assigned package id from source
-    bool      shared;
-  } Package_reference;
-
   typedef void (* routing_handler) (
-    uint8_t *recipient_bus_id,
-    uint8_t recipient_device_id,
-    uint8_t *sender_bus_id,
-    uint8_t sender_device_id,
-    uint8_t type,
-    uint8_t hops,
-    uint16_t id,
-    uint8_t *content,
-    uint8_t length
+    uint8_t  *recipient_bus_id,
+    uint8_t  recipient_device_id,
+    uint8_t  *sender_bus_id,
+    uint8_t  sender_device_id,
+    uint8_t  *content,
+    uint16_t length,
+    uint16_t packet_id,
+    uint8_t  hops
   );
 
   static void dummy_handler(
-    uint8_t *recipient_bus_id,
-    uint8_t recipient_device_id,
-    uint8_t *sender_bus_id,
-    uint8_t sender_device_id,
-    uint8_t type,
-    uint8_t hops,
+    uint8_t  *recipient_bus_id,
+    uint8_t  recipient_device_id,
+    uint8_t  *sender_bus_id,
+    uint8_t  sender_device_id,
     uint16_t id,
-    uint8_t *content,
-    uint8_t length
+    uint8_t  *content,
+    uint16_t length
+    uint8_t  hops,
   ) {};
 
   class OSPREY {
     public:
       OSPREY();
       uint8_t add_bus(Link *link);
-      uint16_t add_package_reference(uint8_t *bus_id, uint16_t package_id, uint8_t packet_index);
       boolean bus_id_equality(const uint8_t *id_one, const uint8_t *id_two);
       uint8_t count_active_buses();
       uint16_t find_bus(const uint8_t *bus_id, uint8_t id);
       uint16_t generate_package_id();
 
-      void handle_packet(uint8_t *bus_id, uint8_t packet_index, uint8_t state);
+      void handle_packet(const uint8_t *bus_id, uint8_t packet_index, uint8_t state);
 
       void receive(uint32_t duration);
-      void received(uint8_t *payload, uint8_t length, const PacketInfo &packet_info);
-
-      void remove_package_reference(const uint8_t *bus_id, uint16_t packet_index);
+      void received(uint8_t *payload, uint16_t length, const PacketInfo &packet_info);
 
       uint16_t send(
-        uint8_t *recipient_bus_id,
-        uint8_t recipient_device_id,
-        uint8_t *sender_bus_id,
-        uint8_t sender_device_id,
-        uint8_t type,
-        char *content,
-        uint8_t length
+        const uint8_t *recipient_bus_id,
+        uint8_t       recipient_device_id,
+        const uint8_t *sender_bus_id,
+        uint8_t       sender_device_id,
+        const char    *content,
+        uint16_t      length,
+        uint16_t      header = NOT_ASSIGNED,
+        uint16_t      packet_id = 0,
+        uint8_t       hops = 0
       );
 
       uint16_t dispatch(
-        uint8_t  header,
-        uint8_t  bus_index,
-        uint8_t  *sender_bus_id,
-        uint8_t  sender_device_id,
-        uint8_t  *recipient_bus_id,
-        uint8_t  recipient_device_id,
-        uint8_t  type,
-        uint8_t  hops,
-        uint16_t package_id,
-        char     *content,
-        uint8_t  length
+        uint8_t bus_index,
+        const uint8_t *recipient_bus_id,
+        uint8_t       recipient_device_id,
+        const uint8_t *sender_bus_id,
+        uint8_t       sender_device_id,
+        const char    *content,
+        uint16_t      length,
+        uint16_t      header = NOT_ASSIGNED,
+        uint16_t      packet_id = 0,
+        uint8_t       hops = 0
       );
 
       void update();

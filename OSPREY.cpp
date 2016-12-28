@@ -1,12 +1,11 @@
 
-            /*/\      __   __   __   __   __
+            /*\      __   __   __   __   __
             shs-    |  | |__  |__| |__| |__  \ /
            dM_d:    |__|  __| |    |  \ |__   |  0.1
-          dL:KM     Arduino compatible open-source mesh network framework
+          dL:KM     Arduino compatible open-source bus network framework
          dM56Mh     based on the PJON standard. Giovanni Blu Mitolo 2016
         yM87MM:     gioscarab@gmail.com
-        dgfi3h
-        mMfdas-
+        dgfi3h-
          NM*(Mm          /|  Copyright (c) 2014-2016,
      ___yM(U*MMo        /j|  Giovanni Blu Mitolo All rights reserved.
    _/OF/sMQWewrMNhfmmNNMN:|  Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,18 +18,16 @@
          sMM3Mh     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
           dM6MN     See the License for the specific language governing permissions and
            dMtd:    limitations under the License.
-            shs
-            \/*/
+            \*/
 
 #include "OSPREY.h"
 
 OSPREY::OSPREY() {
   for(int b = 0; b < MAX_BUSES; b++)
-    for(int r = 0; r < MAX_KNOWN_DEVICES; r++)
+    for(int r = 0; r < MAX_KNOWN_DEVICES; r++) {
       buses[b]->known_devices[r].active = false;
-
-  for(uint8_t p = 0; p < MAX_PACKAGE_REFERENCES; p++)
-    package_references[p].package_id = 0;
+      buses[b]->known_devices[r].id = NOT_ASSIGNED;
+    }
 
   // TODO - Set receiver
   // TODO - Set error
@@ -45,36 +42,9 @@ uint8_t OSPREY::add_bus(Link *link) {
     if(!buses[b]->active) {
       buses[b]->active = true;
       buses[b]->link = link;
-      buses[b]->link->set_packet_auto_deletion(false);
       buses[b]->link->set_router(router);
       // TODO - Manage auto-addressing strategy
     }
-};
-
-
-/* Create a reference between the dispatched PJON packet on a certain bus to a OSPREY package id: */
-
-uint16_t OSPREY::add_package_reference(uint8_t bus_id[4], uint16_t package_id, uint8_t packet_index) {
-  for(uint8_t p = 0; p < MAX_PACKAGE_REFERENCES; p++)
-    if(!package_references[p].package_id) {
-      for(uint8_t b = 0; b < 4; b++)
-        package_references[p].bus_id[b] = bus_id[b];
-
-      package_references[p].package_id = package_id;
-      package_references[p].packet_index = packet_index;
-      return p;
-    }
-  // TODO - detect memory leak error
-};
-
-
-/* Compute bus id equality: */
-
-boolean OSPREY::bus_id_equality(const uint8_t *id_one, const uint8_t *id_two) {
-  for(uint8_t i = 0; i < 4; i++)
-    if(id_one[i] != id_two[i])
-      return false;
-  return true;
 };
 
 
@@ -89,21 +59,10 @@ uint8_t OSPREY::count_active_buses() {
 };
 
 
-/* Generate a auto-increment package id: */
-
-uint16_t OSPREY::generate_package_id() {
-  if (_package_id_source + 1 > _package_id_source)
-    return _package_id_source++;
-  return 1;
-};
-
-
 /* Handle PJON packet state change: */
 
 void OSPREY::handle_packet(uint8_t *bus_id, uint8_t packet_index, uint8_t state) {
-  if(state == DISPATCHED /* && bus(bus_id).packets[packet_index].content[9] == ACK */) // So if ack
-    remove_package_reference(bus_id, packet_index);
-  // TODO - Hanle sending failure
+
 };
 
 
@@ -122,19 +81,13 @@ void OSPREY::receive(uint32_t duration) {
 
 
 void OSPREY::received(uint8_t *payload, uint8_t length, const PacketInfo &packet_info) {
-  if(!(packet_info.header & OSPREY_BIT)) return; // return if non-OSPREY package
-
-  uint16_t package_id = payload[12] << 8 | payload[13] & 0xFF;
+  if(!(packet_info.header & ROUTING_BIT)) return; // return if non-OSPREY package
   uint8_t recipient_bus = find_bus(packet_info.receiver_bus_id, packet_info.receiver_id);
 
   if(recipient_bus != FAIL) {
     /* if(payload[11] == ACK) return remove_package_reference(packet_info.sender_bus_id, packet_info.sender_id);
     _receiver(payload, length, packet_info); Call OSPREY receiver
     return dispatch(DEFAULT_HEADER, recipient_bus, &packet_info.receiver_bus_id, packet_info.receiver_id, &packet_info.sender_bus_id, packet_info.sender_id, ACK, 0, package_id, ACK, 1); */
-  }
-
-  if(packet_info.header & ROUTE_REQUEST_BIT) {
-    // TODO - Route package
   }
 };
 
@@ -147,106 +100,50 @@ uint16_t OSPREY::find_bus(const uint8_t *bus_id, uint8_t id) {
 };
 
 
-void OSPREY::remove_package_reference(const uint8_t *bus_id, uint16_t package_id) {
-  for(uint8_t p = 0; p < MAX_PACKAGE_REFERENCES; p++)
-    if(bus_id_equality(package_references[p].bus_id, bus_id) && package_references[p].package_id == package_id) {
-      package_references[p].bus_id[0] = 0;
-      package_references[p].bus_id[1] = 0;
-      package_references[p].bus_id[2] = 0;
-      package_references[p].bus_id[3] = 0;
-      package_references[p].packet_index = 0;
-      package_references[p].package_id = 0;
-      for(uint8_t b = 0; b < MAX_BUSES; b++)
-        if(bus_id_equality(package_references[p].bus_id, buses[b]->link->bus_id))
-          buses[b]->link->remove(package_references[p].packet_index);
-    }
-};
+/*  PJON packet used to transmit an encapsulated OSPREY routing packet:
 
-
-/*  PJON packet used to transmit an encapsulated OSPREY package:
-
-                   |  HEADER  | RECEIVER INFO | SENDER INFO |
-   _______ ________|__________|_______________|_____________|_________ _______
-  |       |        |          |               |         |   |         |       |
-  |  id   | length | 10000111 |    0.0.0.2    | 0.0.0.2 | 1 | content |  CRC  |
-  |_______|________|__________|_______________|_________|___|_________|_______|
-                                                              |
-                                                              |
-  PJON bus used as a link for an OSPREY network               |
-  Here an example of OSPREY package:                          |
-     _________________________________________________________|
-   _|_________________________________
-  | PACKAGE INFO            | CONTENT |
-  |_________________________|_________|
-  | type | hops | packet id |         |
-  |______|______|___________|_________|
-  |  __  |  __  |  __  __   |   __    |
-  | |  | | |  | | |  ||  |  |  |  |   |
-  | |__| | |__| | |__||__|  |  |__|   |
-  |  102 |   1  |   0   1   |   64    |
-  |______|______|___________|_________|________________________________________
+  |RX ID|      HEADER     |LENGTH|RX INFO| TX INFO |PACKET ID|HOPS|DATA|CRC|
+  |_____|_________________|______|_______|_________|_________|____|____|___|
+  |     |        |        |      |       |       | |         |    |    |   |
+  | 1   |10001011|01000000|  18  |0.0.0.1|0.0.0.2|1|   99    | 1  | 64 |   |
+  |_____|________|________|______|_______|_______|_|_________|____|____|___|
+   ____________________________________________________________________________
   |                                                                            |
-  |  Package example:                                                          |
-  |  Device 1 in bus 0.0.0.2 is sending a REQUEST (value 102) to device 1      |
-  |  (present in the lower level PJON's packet) in bus 0.0.0.1 the first       |
-  |  package since started (package id 1) containing the content "@" or        |
+  |  Routed packet example:                                                    |
+  |  Device 1 in bus 0.0.0.2 sends to device 1 in bus 0.0.0.1 the first        |
+  |  packet since started (packet id 1) containing the content "@" or          |
   |  decimal 64.                                                               |
   |____________________________________________________________________________| */
 
 
 uint16_t OSPREY::dispatch(
-  uint8_t  header,
-  uint8_t  bus_index,
-  uint8_t  *sender_bus_id,
-  uint8_t  sender_device_id,
-  uint8_t  *recipient_bus_id,
-  uint8_t  recipient_device_id,
-  uint8_t  type,
-  uint8_t  hops,
-  uint16_t package_id,
-  char     *content,
-  uint8_t  length
+  uint8_t       bus_index,
+  const uint8_t *recipient_bus_id,
+  uint8_t       recipient_device_id,
+  const uint8_t *sender_bus_id,
+  uint8_t       sender_device_id,
+  const char    *content,
+  uint16_t      length,
+  uint16_t      header = NOT_ASSIGNED,
+  uint16_t      packet_id = 0,
+  uint8_t       hops = 0
 ) {
   hops += 1;
   if(hops >= MAX_HOPS) return HOPS_LIMIT;
 
-  uint16_t reference;
-  char *payload = (char *) malloc(length + 13);
-  if(payload == NULL) return MEMORY_FULL;
-
-  recipient_bus_id = recipient_device_id ? recipient_bus_id : buses[bus_index]->link->bus_id;
-  recipient_device_id = recipient_device_id ? recipient_device_id : buses[bus_index]->link->device_id();
-
-  memcpy(payload, sender_bus_id, 4);
-  payload[4] = sender_device_id;
-  memcpy(payload + 5, recipient_bus_id, 4);
-  payload[9] = recipient_device_id;
-  payload[10] = type;
-  payload[11] = hops;
-  payload[12] = package_id  >> 8;
-  payload[13] = package_id & 0xFF;
-  memcpy(payload + 14, content, length);
-
-  /* reference = add_package_reference(
-    buses[bus_index]->link->bus_id,
-    package_id,
-    buses[bus_index].link->dispatch(device_id, bus_id, payload, length + 13, header);
-  ); */
-
-  free(payload);
-
-  return reference;
 };
 
 
 uint16_t OSPREY::send(
-  uint8_t *recipient_bus_id,
-  uint8_t recipient_device_id,
-  uint8_t *sender_bus_id,
-  uint8_t sender_device_id,
-  uint8_t type,
-  char *content,
-  uint8_t length
+  const uint8_t *recipient_bus_id,
+  uint8_t       recipient_device_id,
+  const uint8_t *sender_bus_id,
+  uint8_t       sender_device_id,
+  const char    *content,
+  uint16_t      length,
+  uint16_t      header = NOT_ASSIGNED,
+  uint16_t      packet_id = 0,
+  uint8_t       hops = 0
 ) {
   int16_t package_id = generate_package_id();
   uint8_t header = DEFAULT_HEADER;
