@@ -55,7 +55,6 @@
   // Device structure
   typedef struct {
     boolean active;
-    uint8_t bus_id[4];
     uint8_t id;
     boolean router;
   } Device;

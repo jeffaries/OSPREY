@@ -42,6 +42,7 @@ uint8_t OSPREY::add_bus(Link *link) {
     if(!buses[b]->active) {
       buses[b]->active = true;
       buses[b]->link = link;
+      buses[b]->link->begin();
       buses[b]->link->set_router(router);
       // TODO - Manage auto-addressing strategy
     }
@@ -82,13 +83,22 @@ void OSPREY::receive(uint32_t duration) {
 
 void OSPREY::received(uint8_t *payload, uint8_t length, const PacketInfo &packet_info) {
   if(!(packet_info.header & ROUTING_BIT)) return; // return if non-OSPREY package
-  uint8_t recipient_bus = find_bus(packet_info.receiver_bus_id, packet_info.receiver_id);
+  uint16_t recipient_bus = find_bus(packet_info.receiver_bus_id, packet_info.receiver_id);
 
-  if(recipient_bus != FAIL) {
-    /* if(payload[11] == ACK) return remove_package_reference(packet_info.sender_bus_id, packet_info.sender_id);
-    _receiver(payload, length, packet_info); Call OSPREY receiver
-    return dispatch(DEFAULT_HEADER, recipient_bus, &packet_info.receiver_bus_id, packet_info.receiver_id, &packet_info.sender_bus_id, packet_info.sender_id, ACK, 0, package_id, ACK, 1); */
-  }
+  if(recipient_bus != FAIL)
+    dispatch(
+      recipient_bus,
+      &packet_info.receiver_bus_id,
+      packet_info.receiver_id,
+      &packet_info.sender_bus_id,
+      packet_info.sender_id,
+      payload,
+      length,
+      packet_info.header,
+      packet_info.packet_id,
+      payload[0]
+    );
+
 };
 
 
@@ -131,6 +141,24 @@ uint16_t OSPREY::dispatch(
   hops += 1;
   if(hops >= MAX_HOPS) return HOPS_LIMIT;
 
+  uint8_t sbid[4];
+  uint8_t sid = buses[bus_index]->link->device_id();
+  copy_bus_id(sbid, buses[bus_index]->link->bus_id);
+  buses[bus_index]->link->bus_id = sender_bus_id;
+  buses[bus_index]->link->set_id(sender_device_id);
+
+  buses[bus_index]->link->send(
+    recipient_device_id,
+    &recipient_bus_id,
+    content,
+    length,
+    header,
+    packet_id,
+    hops
+  );
+
+  copy_bus_id(buses[bus_index]->link->bus_id, sbid);
+  buses[bus_index]->link->set_id(sid);
 };
 
 
@@ -145,7 +173,7 @@ uint16_t OSPREY::send(
   uint16_t      packet_id = 0,
   uint8_t       hops = 0
 ) {
-  int16_t package_id = generate_package_id();
+  int16_t packet_id = generate_packet_id();
   uint8_t header = DEFAULT_HEADER;
 
   // 1 First network id lookup with direct bus connections
@@ -153,46 +181,19 @@ uint16_t OSPREY::send(
     if(buses[b]->active && bus_id_equality(buses[b]->link->bus_id, recipient_bus_id) || type == INFO) {
       // First level connection detected
       // Send OSPREY Package as PJON packet to the directly connected PJON bus
-      /*dispatch(
+      return dispatch(
         b,
-        DEFAULT_HEADER | ACKNOWLEDGE_BIT,
-        buses[b]->link->bus_id,
-        buses[b]->link->device_id(),
         recipient_bus_id,
         recipient_device_id,
-        type,
-        package_id,
+        &buses[b]->link->bus_id,
+        buses[b]->link->device_id(),
         content,
-        length
-      );*/
-      if(type != INFO) return DISPATCHED;
+        length,
+        header,
+        packet_id,
+        hops
+      );
     }
-
-  if(type == INFO) return DISPATCHED;
-
-  // 2 Network id lookup in every router's connected bus list
-  for(uint8_t b = 0; b < MAX_BUSES; b++)
-    if(buses[b]->active)
-      for(uint8_t d = 0; d < MAX_KNOWN_DEVICES; d++)
-        if(buses[b]->known_devices[d].active)
-          for(uint8_t k = 0; k < MAX_KNOWN_BUSES; k++)
-            if(bus_id_equality(buses[b]->known_devices[d].known_bus_ids[k], recipient_bus_id)) {
-              set_bit(header, 7); // Set ROUTE_REQUEST_BIT HIGH
-              return DISPATCHED; //dispatch(
-              /*  header,
-                b,
-                recipient_bus_id,
-                recipient_device_id,
-                sender_bus_id,
-                sender_device_id,
-                type,
-                package_id,
-                content,
-                length
-              );*/
-              // Second level connection detected
-              // Send OSPREY Package as PJON packet to the router connected to the target PJON bus
-            }
   return BUS_UNREACHABLE;
 };
 
