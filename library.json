@@ -1,0 +1,44 @@
+{
+  "name": "OSPREY",
+  "description": "quick, configuration-less, plug-and-play networking over PJON",
+  "homepage": "https://www.osprey.org",
+  "keywords": "osprey, pjon, dynamic, addressing",
+  "license": "Apache-2.0",
+  "authors":
+  {
+    "name": "Giovanni Blu Mitolo",
+    "email": "gioscarab@gmail.com",
+    "maintainer": true
+  },
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/gioblu/OSPREY.git"
+  },
+  "version": "1.0",
+  "examples": [
+    "examples/*/*/*/*/*.ino",
+    "examples/*/*/*/*/*.h",
+    "examples/*/*/*/*/*/*.ino",
+    "examples/*/*/*/*/*/*.h",
+    "examples/*/*/*/*/*/*/*.ino",
+    "examples/*/*/*/*/*/*/*.h"
+  ],
+  "frameworks": [
+    "arduino",
+    "wiringpi"
+  ],
+  "platforms": [
+    "atmelavr",
+    "atmelsam",
+    "espressif8266",
+    "espressif32",
+    "teensy",
+    "linux_x86_64",
+    "windows_x86",
+    "ststm32"
+  ],
+  "build" : {
+    "flags": "-std=c++11"
+  }
+}
