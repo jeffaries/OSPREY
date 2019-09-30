@@ -2,9 +2,9 @@
           /*\      __   __   __   __   __
           shs-    |  | |__  |__| |__| |__  \ /
          dM_d:    |__|  __| |    |  \ |__   |  0.1
-        dL:KM     Arduino compatible configuration-less, plug-and-play
-       dM56Mh     networking over PJON. Giovanni Blu Mitolo 2016
-      yM87MM:     gioscarab@gmail.com
+        dL:KM     Configuration-less, plug-and-play,
+       dM56Mh     dynamic networking over PJON.
+      yM87MM:
       dgfi3h-
        NM*(Mm          /|  Copyright (c) 2014-2019,
    ___yM(U*MMo        /j|  Giovanni Blu Mitolo All rights reserved.
