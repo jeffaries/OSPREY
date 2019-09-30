@@ -6,7 +6,7 @@ OSPREY is a new Open Standard designed to enable quick, configuration-less, plug
 [![Join the chat at https://gitter.im/gioblu/PJON](https://badges.gitter.im/gioblu/PJON.svg)](https://gitter.im/gioblu/PJON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ### Specification
-- [OSPREY dynamic addressing specification](specification/OSPREY-dynamic-addressing-specification-v0.1)
+- [OSPREY dynamic addressing specification](specification/OSPREY-dynamic-addressing-specification-v0.1.md)
 
 ### Contribute
 Feel free to send a pull request sharing something you have made that could help, if you want to support this project you can also try to solve an [issue](https://github.com/gioblu/OSPREY/issues).
