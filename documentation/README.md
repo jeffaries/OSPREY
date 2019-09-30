@@ -1,7 +1,7 @@
 
 
 ## Documentation
-`OSPREYMaster` and `OSPREYSlave` classes implement the master-slave and multi-master [dynamic addressing](/specification/PJON-dynamic-addressing-specification-v2.0.md) features on top of the `PJON` class. Slaves can be connected to a bus and can be hot-swapped, their id is automatically assigned by master and their presence can be optionally monitored. Master keeps an updated list of known dynamically addressed slaves. Use the `PJON` class if those features are not required.   
+`OSPREYMaster` and `OSPREYSlave` classes implement the master-slave [dynamic addressing](/specification/OSPREY-dynamic-addressing-specification-v0.1.md) features on top of the `PJON` class. Slaves can be connected to a bus, they can be hot-swapped, their id is automatically assigned by the master and their presence can be optionally monitored. The Master keeps an updated list of known slaves.    
 
 ### OSPREYMaster
 The `OSPREYMaster` class implement master's dynamic addressing procedure which is totally automatic a requires no configuration, although some optional configuration is available. The constant `OSPREY_MAX_SLAVES` can be used to predefine the maximum amount of slaves handled by the master:  
@@ -99,4 +99,4 @@ void error_handler(uint8_t code, uint8_t data, void *custom_pointer) {
 };
 ```
 
-See the [MasterSlaveAutoAddressing](../examples/ARDUINO/Network/SoftwareBitBang/MasterSlaveAutoAddressing) example for a working showcase.
+See the [DynamicAddressing](../examples/ARDUINO/Network/SoftwareBitBang/DynamicAddressing) example for a working showcase.
