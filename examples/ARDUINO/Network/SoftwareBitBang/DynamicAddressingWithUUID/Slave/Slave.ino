@@ -40,7 +40,7 @@ void error_handler(uint8_t code, uint16_t data, void *custom_pointer) {
 
 void setup() {
   Serial.begin(115200);
-   slave.set_rid(87654321);
+   slave.set_uuid(87654321);
   slave.set_error(error_handler);
   slave.set_receiver(receiver_handler);
   slave.strategy.set_pin(5);
