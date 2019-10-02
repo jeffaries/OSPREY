@@ -53,10 +53,16 @@ class OSPREYSlave : public PJON<Strategy> {
       set_default();
     };
 
-    /* Acquire id in master-slave configuration: */
+	/* Define, prior to call to Begin(), the universal unique id of the slave. */
 
-    bool request_id() {
-      generate_rid();
+	void set_uuid(uint32_t rid){
+		if(!_rid) _rid = rid;
+	}
+
+/* Acquire id in master-slave configuration: */
+
+bool request_id() {
+  if(!_rid) generate_rid();
       char response[5];
       response[0] = OSPREY_ID_REQUEST;
       response[1] = (uint8_t)((uint32_t)(_rid) >> 24);
