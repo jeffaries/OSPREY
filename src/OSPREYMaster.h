@@ -65,7 +65,7 @@ class OSPREYMaster : public PJON<Strategy> {
     /* Add a device reference: */
 
     bool add_id(uint8_t id, uint32_t rid, bool state) {
-      if(unique_rid(rid) && !ids[id - 1].state && !ids[id - 1].rid) {
+      if(!ids[id - 1].state && !ids[id - 1].rid) {
         ids[id - 1].rid = rid;
         ids[id - 1].state = state;
         return true;
@@ -106,7 +106,19 @@ class OSPREYMaster : public PJON<Strategy> {
 
     void begin() {
       PJON<Strategy>::begin();
-      list_ids();
+      delete_id_reference();
+      _list_time = PJON_MICROS();
+      uint8_t request = OSPREY_ID_LIST;
+      _list_id = PJON<Strategy>::send_repeatedly(
+        PJON_BROADCAST,
+        this->bus_id,
+        &request,
+        1,
+        OSPREY_LIST_IDS_TIME,
+        PJON<Strategy>::config | required_config,
+        0,
+        OSPREY_DYNAMIC_ADDRESSING_PORT
+      );
     };
 
     /* Confirm device ID insertion in list: */
@@ -251,33 +263,6 @@ class OSPREYMaster : public PJON<Strategy> {
       return PJON_NOT_ASSIGNED;
     };
 
-    /* Check for device rid uniqueness in the reference buffer: */
-
-    bool unique_rid(uint32_t rid) {
-      for(uint8_t i = 0; i < OSPREY_MAX_SLAVES; i++)
-        if(ids[i].rid == rid) return false;
-      return true;
-    };
-
-    /* Broadcast a OSPREY_ID_LIST request to all devices: */
-
-    void list_ids() {
-      uint32_t time = PJON_MICROS();
-      uint8_t request = OSPREY_ID_LIST;
-      while((uint32_t)(PJON_MICROS() - time) < OSPREY_ADDRESSING_TIMEOUT) {
-        PJON<Strategy>::send_packet(
-          PJON_BROADCAST,
-          this->bus_id,
-          &request,
-          1,
-          PJON<Strategy>::config | required_config,
-          0,
-          OSPREY_DYNAMIC_ADDRESSING_PORT
-        );
-        receive(OSPREY_LIST_IDS_TIME);
-      }
-    };
-
     /* Negate a device id request sending a packet to the device containing
        ID_NEGATE forcing the slave to make a new request. */
 
@@ -304,9 +289,8 @@ class OSPREYMaster : public PJON<Strategy> {
     /* Reserve a device id and wait for its confirmation: */
 
     uint16_t reserve_id(uint32_t rid) {
-      if(!unique_rid(rid)) return PJON_FAIL;
       for(uint8_t i = 0; i < OSPREY_MAX_SLAVES; i++)
-        if(!ids[i].state && !ids[i].rid) {
+        if((ids[i].rid == rid) || (!ids[i].state && !ids[i].rid)) {
           ids[i].registration = PJON_MICROS();
           ids[i].rid = rid;
           ids[i].state = false;
@@ -375,11 +359,20 @@ class OSPREYMaster : public PJON<Strategy> {
     /* Master packet handling update: */
 
     uint8_t update() {
+      if(
+        (_list_id != PJON_MAX_PACKETS) &&
+        (OSPREY_ADDRESSING_TIMEOUT < (uint32_t)(PJON_MICROS() - _list_time))
+      ) {
+        PJON<Strategy>::remove(_list_id);
+        _list_id = PJON_MAX_PACKETS;
+      }
       free_reserved_ids_expired();
       return PJON<Strategy>::update();
     };
 
   private:
+    uint16_t        _list_id = PJON_MAX_PACKETS;
+    uint32_t        _list_time;
     void           *_custom_pointer;
     PJON_Receiver   _master_receiver;
     PJON_Error      _master_error;

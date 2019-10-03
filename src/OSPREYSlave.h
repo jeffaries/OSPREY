@@ -56,7 +56,7 @@ class OSPREYSlave : public PJON<Strategy> {
     /* Acquire id in master-slave configuration: */
 
     bool request_id() {
-      generate_rid();
+      if(!_rid) generate_rid();
       char response[5];
       response[0] = OSPREY_ID_REQUEST;
       response[1] = (uint8_t)((uint32_t)(_rid) >> 24);
@@ -218,7 +218,10 @@ class OSPREYSlave : public PJON<Strategy> {
               this->data + ((overhead - CRC_overhead) + 1),
               rid
             ) && this->_device_id == this->data[0]
-          ) request_id();
+          ) {
+            set_rid(0);
+            request_id();
+          }
 
         if(this->data[overhead - CRC_overhead] == OSPREY_ID_LIST) {
           if(this->_device_id != PJON_NOT_ASSIGNED) {
@@ -289,7 +292,13 @@ class OSPREYSlave : public PJON<Strategy> {
       _slave_receiver = r;
     };
 
-    /* Master error receiver function: */
+    /* Set manually RID: */
+
+    void set_rid(uint32_t r) {
+      _rid = r;
+    };
+
+    /* Slave error receiver function: */
 
     void set_error(PJON_Error e) {
       _slave_error = e;
@@ -326,7 +335,7 @@ class OSPREYSlave : public PJON<Strategy> {
   private:
     void          *_custom_pointer;
     uint32_t      _last_request_time;
-    uint32_t      _rid;
+    uint32_t      _rid = 0;
     PJON_Error    _slave_error;
     PJON_Receiver _slave_receiver;
 };
