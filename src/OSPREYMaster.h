@@ -106,7 +106,6 @@ class OSPREYMaster : public PJON<Strategy> {
 
     void begin() {
       PJON<Strategy>::begin();
-	  delete_id_reference();
       list_ids();
     };
 
@@ -265,7 +264,7 @@ class OSPREYMaster : public PJON<Strategy> {
     void list_ids() {
       uint32_t time = PJON_MICROS();
       uint8_t request = OSPREY_ID_LIST;
-      //while((uint32_t)(PJON_MICROS() - time) < OSPREY_ADDRESSING_TIMEOUT) {
+      while((uint32_t)(PJON_MICROS() - time) < OSPREY_ADDRESSING_TIMEOUT) {
         PJON<Strategy>::send_packet(
           PJON_BROADCAST,
           this->bus_id,
@@ -276,7 +275,7 @@ class OSPREYMaster : public PJON<Strategy> {
           OSPREY_DYNAMIC_ADDRESSING_PORT
         );
         receive(OSPREY_LIST_IDS_TIME);
-      //}
+      }
     };
 
     /* Negate a device id request sending a packet to the device containing
@@ -307,7 +306,7 @@ class OSPREYMaster : public PJON<Strategy> {
     uint16_t reserve_id(uint32_t rid) {
       if(!unique_rid(rid)) return PJON_FAIL;
       for(uint8_t i = 0; i < OSPREY_MAX_SLAVES; i++)
-        if(ids[i].rid==rid || (!ids[i].state && !ids[i].rid))  {
+        if(!ids[i].state && !ids[i].rid) {
           ids[i].registration = PJON_MICROS();
           ids[i].rid = rid;
           ids[i].state = false;
