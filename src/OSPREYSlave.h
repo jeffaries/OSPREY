@@ -1,22 +1,21 @@
 
-          /*\      __   __   __   __   __
-          shs-    |  | |__  |__| |__| |__  \ /
-         dM_d:    |__|  __| |    |  \ |__   |  0.1
-        dL:KM     Configuration-less, plug-and-play,
-       dM56Mh     dynamic networking over PJON.
+          /*\   __   __   __   __   __
+          shs- |  | |__  |__| |__| |__  \ /
+         dM_d: |__|  __| |    |  \ |__   |  0.1
+        dL:KM  Configuration-less, plug-and-play dynamic networking over PJON.
+       dM56Mh  EXPERIMENTAL, USE AT YOUR OWN RISK
       yM87MM:
-      dgfi3h-
-       NM*(Mm          /|  Copyright (c) 2014-2019,
+       NM*(Mm          /|  Copyright (c) 2014-2019
    ___yM(U*MMo        /j|  Giovanni Blu Mitolo All rights reserved.
  _/OF/sMQWewrMNhfmmNNMN:|  Licensed under the Apache License, Version 2.0
-|\_\+sMM":{rMNddmmNNMN:_|
-       yMMMMso         \|  You may obtain a copy of the License at
-       gtMfgm              http://www.apache.org/licenses/LICENSE-2.0
-      mMA@Mf
-      MMp';M
-      ysM1MM:
-       sMM3Mh     EXPERIMENTAL,
-        dM6MN     USE AT YOUR OWN RISK.
+|\_\+sMM":{rMNddmmNNMN:_|  You may obtain a copy of the License at
+       yMMMMso         \|  http://www.apache.org/licenses/LICENSE-2.0
+       gtMfgm
+      mMA@Mf   Thanks to the support, expertise, kindness and talent of the
+      MMp';M   following contributors, the documentation, specification and
+      ysM1MM:  implementation have been tested, enhanced and verified:
+       sMM3Mh  Fred Larsen, Jeff Gueldre
+        dM6MN
          dMtd:
           \*/
 
