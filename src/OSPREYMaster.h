@@ -259,9 +259,9 @@ class OSPREYMaster : public PJON<Strategy> {
 
     /* Get device id from RID: */
 
-    uint8_t get_id_from_rid(uint32_t rid) {
+    uint8_t get_index_from_rid(uint32_t rid) {
       for(uint8_t i = 0; i < OSPREY_MAX_SLAVES; i++)
-        if(rid == ids[i].rid) return i + 1;
+        if(rid == ids[i].rid) return i;
       return PJON_NOT_ASSIGNED;
     };
 
@@ -291,8 +291,12 @@ class OSPREYMaster : public PJON<Strategy> {
     /* Reserve a device id and wait for its confirmation: */
 
     uint16_t reserve_id(uint32_t rid) {
-      for(uint8_t i = 0; i < OSPREY_MAX_SLAVES; i++)
-        if((ids[i].rid == rid) || (!ids[i].state && !ids[i].rid)) {
+      uint8_t in = get_index_from_rid(rid);
+      for(
+        uint8_t i = (in != PJON_NOT_ASSIGNED) ? in : 0;
+        i < OSPREY_MAX_SLAVES;
+        i++
+      ) if((!ids[i].state && !ids[i].rid) || (in == i)) {
           ids[i].registration = PJON_MICROS();
           ids[i].rid = rid;
           ids[i].state = false;

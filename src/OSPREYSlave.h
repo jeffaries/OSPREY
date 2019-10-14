@@ -218,7 +218,7 @@ class OSPREYSlave : public PJON<Strategy> {
               rid
             ) && this->_device_id == this->data[0]
           ) {
-            set_rid(0);
+            this->set_id(PJON_NOT_ASSIGNED);
             request_id();
           }
 
