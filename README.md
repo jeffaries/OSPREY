@@ -1,5 +1,5 @@
 
-## OSPREY 0.0
+## OSPREY 0.1
 OSPREY is a new Open Standard designed to enable quick, configuration-less, plug-and-play dynamic networking over [PJON](https://github.com/gioblu/PJON). Visit [wiki](https://github.com/gioblu/PJON/wiki) and [documentation](documentation/README.md) to know more about the [PJON protocol](specification/PJON-protocol-specification-v3.1.md).
 
 [![Get PJON bus id](https://img.shields.io/badge/get-PJON%20bus%20id-lightgrey.svg)](http://www.pjon.org/get-bus-id.php)
